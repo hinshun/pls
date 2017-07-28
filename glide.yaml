@@ -1,0 +1,15 @@
+package: github.com/hinshun/pls
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/docker/docker
+  subpackages:
+  - api/types
+  - api/types/container
+  - api/types/filters
+  - api/types/network
+  - client
+- package: github.com/docker/go-connections
+  subpackages:
+  - nat
+- package: github.com/palantir/stacktrace
+- package: gopkg.in/urfave/cli.v2

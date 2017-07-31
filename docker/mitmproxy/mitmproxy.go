@@ -53,8 +53,9 @@ func New(ctx context.Context, cli client.APIClient) (*MITMProxy, error) {
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
 		},
-		Cmd:       []string{"mitmdump"},
-		OpenStdin: true,
+		Tty:         true,
+		AttachStdin: true,
+		OpenStdin:   true,
 	}
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{

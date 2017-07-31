@@ -47,7 +47,7 @@ func (r *RetryPolicy) Next() <-chan time.Time {
 }
 
 func (r *RetryPolicy) Report(err error) {
-	logrus.Debugf("Received error: %s", err)
+	logrus.Infof("Received error: %s", err)
 }
 
 func (r *RetryPolicy) WithDelay(delay time.Duration) *RetryPolicy {

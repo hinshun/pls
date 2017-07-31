@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/docker/dind"
+	"github.com/hinshun/pls/docker/dockercli"
 	"github.com/palantir/stacktrace"
 
 	"gopkg.in/urfave/cli.v2"
@@ -19,9 +20,16 @@ func CreateDind(c *cli.Context) error {
 		return stacktrace.Propagate(err, "failed to create docker client from env: %s", err)
 	}
 
-	spec := dind.DindSpec{}
+	spec := dind.DindSpec{
+		MITMProxyName: c.String("mitm"),
+	}
 
-	dind, err := dind.NewDind(ctx, cli, spec)
+	err = dockercli.LazyImageLoad(ctx, cli, dind.DindImageName)
+	if err != nil {
+		return stacktrace.Propagate(err, "failed to load dind image")
+	}
+
+	dind, err := dind.New(ctx, cli, spec)
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to create new dind")
 	}

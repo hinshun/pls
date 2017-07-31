@@ -2,11 +2,13 @@ package command
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/hinshun/pls/docker/dind"
 	"github.com/palantir/stacktrace"
 
 	"gopkg.in/urfave/cli.v2"
@@ -19,12 +21,12 @@ func PruneDinds(c *cli.Context) error {
 		return stacktrace.Propagate(err, "failed to create docker client from env: %s", err)
 	}
 
-	pruneFilters := filters.NewArgs()
-	pruneFilters.Add("label", "pls=dind")
+	pruneFilter := filters.NewArgs()
+	pruneFilter.Add("label", fmt.Sprintf("pls=%s", dind.DindPrefix))
 	dindContainers, err := cli.ContainerList(ctx, types.ContainerListOptions{
 		Quiet:   true,
 		All:     true,
-		Filters: pruneFilters,
+		Filters: pruneFilter,
 	})
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to list dind containers: %s", err)

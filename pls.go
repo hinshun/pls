@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/hinshun/pls/command"
-	"github.com/palantir/stacktrace"
 
 	"gopkg.in/urfave/cli.v2"
 )
@@ -18,14 +17,35 @@ func main() {
 				Name: "dind",
 				Subcommands: []*cli.Command{
 					{
-						Name:   "create",
-						Usage:  "Create a new dind container",
+						Name:  "create",
+						Usage: "Create a new dind container",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "mitm",
+								Usage: "Man-in-the-Middle proxy to intercept outgoing dockerd traffic",
+							},
+						},
 						Action: WrapAction(command.CreateDind),
 					},
 					{
 						Name:   "prune",
 						Usage:  "Remove all dind containers",
 						Action: WrapAction(command.PruneDinds),
+					},
+				},
+			},
+			{
+				Name: "mitm",
+				Subcommands: []*cli.Command{
+					{
+						Name:   "create",
+						Usage:  "Create a new mitmproxy container",
+						Action: WrapAction(command.CreateMITMProxy),
+					},
+					{
+						Name:   "prune",
+						Usage:  "Remove all mitmproxy containers",
+						Action: WrapAction(command.PruneMITMProxies),
 					},
 				},
 			},
@@ -50,5 +70,6 @@ type cliError struct {
 }
 
 func (c cliError) Error() string {
-	return stacktrace.RootCause(c.err).Error()
+	return c.err.Error()
+	// return stacktrace.RootCause(c.err).Error()
 }

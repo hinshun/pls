@@ -3,64 +3,82 @@ package dind
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/hinshun/pls/docker/dockercli"
+	"github.com/hinshun/pls/docker/mitmproxy"
 	"github.com/hinshun/pls/pkg/failsafe"
 	"github.com/hinshun/pls/pkg/namegen"
 	"github.com/palantir/stacktrace"
 )
 
 const (
-	StableDindImageName = "docker:stable-dind"
-	DindPort            = 4444
+	DindImageName              = "docker:stable-dind"
+	DindPort                   = 2375
+	DindPrefix                 = "dind"
+	DockerSocketPath           = "/var/run/docker.sock"
+	SystemCertificateDirectory = "/usr/local/share/ca-certificates"
 )
 
 type DindSpec struct {
-	Name string
+	Name          string
+	MITMProxyName string
 }
 
 type Dind struct {
 	client.APIClient
 
-	ID       string
-	Name     string
-	HostAddr string
-	HostPort string
+	ID   string
+	Name string
 
 	rootCTX context.Context
 	rootCLI client.APIClient
 }
 
-func NewDind(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error) {
+func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error) {
 	dindName := spec.Name
 	if dindName == "" {
 		var err error
-		dindName, err = namegen.GetUnusedContainerName(ctx, cli, "dind")
+		dindName, err = namegen.GetUnusedContainerName(ctx, cli, DindPrefix)
 		if err != nil {
-			return nil, stacktrace.Propagate(err, "failed to generate dind container name.")
+			return nil, stacktrace.Propagate(err, "failed to generate dind container name")
 		}
 	}
+
+	var (
+		dindCmd   []string
+		mitmProxy *mitmproxy.MITMProxy
+	)
+	if spec.MITMProxyName != "" {
+		var err error
+		mitmProxy, err = mitmproxy.NewFromExisting(ctx, cli, spec.MITMProxyName)
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "failed to create reference from existing mitmproxy container")
+		}
+
+		dindCmd = append(dindCmd, "update-ca-certificates;", fmt.Sprintf("HTTPS_PROXY=%s:%d", mitmProxy.Name, mitmproxy.MITMProxyPort))
+	}
+	dindCmd = append(dindCmd, "dockerd", "-H", fmt.Sprintf("unix://%s", DockerSocketPath), "-H", fmt.Sprintf("tcp://0.0.0.0:%d", DindPort))
 
 	dindTCPPort := fmt.Sprintf("%d/tcp", DindPort)
 	exposedPorts, err := dockercli.NewPortSet(dindTCPPort)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to create dind port.")
+		return nil, stacktrace.Propagate(err, "failed to create dind port")
 	}
 
 	cfg := &container.Config{
-		Image: StableDindImageName,
+		Image: DindImageName,
 		Labels: map[string]string{
-			"pls": "dind",
+			"pls": DindPrefix,
 		},
 		Entrypoint:   []string{"sh"},
+		Cmd:          append([]string{"-c"}, strings.Join(dindCmd, " ")),
 		ExposedPorts: exposedPorts,
-		OpenStdin:    true,
 	}
 	hostCfg := &container.HostConfig{
 		Privileged:      true,
@@ -68,44 +86,39 @@ func NewDind(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, e
 	}
 	netCfg := &network.NetworkingConfig{}
 
-	dindID, err := dockercli.ContainerCreate(ctx, cli, cfg, hostCfg, netCfg, dindName)
+	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, dindName)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to create dind")
-	}
-
-	containerJSON, err := cli.ContainerInspect(ctx, dindID)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to inspect dind")
-	}
-
-	portBindings, ok := containerJSON.NetworkSettings.Ports[nat.Port(dindTCPPort)]
-	if !ok || len(portBindings) == 0 {
-		return nil, stacktrace.NewError("failed to get dind host port")
+		return nil, stacktrace.Propagate(err, "failed to create dind container")
 	}
 
 	dind := &Dind{
-		ID:       dindID,
-		Name:     dindName,
-		HostAddr: containerJSON.NetworkSettings.Gateway,
-		HostPort: portBindings[0].HostPort,
+		ID:   createResp.ID,
+		Name: dindName,
 
 		rootCTX: ctx,
 		rootCLI: cli,
 	}
 
+	if spec.MITMProxyName != "" {
+		err = cli.NetworkConnect(ctx, mitmProxy.Network, dind.ID, &network.EndpointSettings{})
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "failed to connect dind to mitmproxy network")
+		}
+
+		caStream, err := mitmProxy.GetCACertificate()
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "failed to get mitmproxy ca certificate")
+		}
+
+		err = cli.CopyToContainer(ctx, dind.ID, SystemCertificateDirectory, caStream, types.CopyToContainerOptions{})
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "failed to copy mitmproxy ca certificate to system certificate directory")
+		}
+	}
+
 	err = dind.startDaemon()
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed start daemon for '%s'", dind.Name)
-	}
-
-	dind.APIClient, err = dind.newClient()
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to create new docker client for '%s'", dind.Name)
-	}
-
-	err = dind.Healthcheck()
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to healthcheck '%s' dind daemon after start.", dind.Name)
+		return nil, stacktrace.Propagate(err, "failed to start daemon")
 	}
 
 	return dind, nil
@@ -118,48 +131,46 @@ func (d *Dind) Healthcheck() error {
 		return err
 	})
 	if err != nil {
-		return stacktrace.Propagate(err, "failed to ping '%s' daemon.", d.Name)
+		return stacktrace.Propagate(err, "failed to ping dind daemon")
 	}
 	return nil
 }
 
 func (d *Dind) startDaemon() error {
-	execResp, err := d.rootCLI.ContainerExecCreate(d.rootCTX, d.ID, types.ExecConfig{
-		Cmd: []string{"dockerd", "-H", fmt.Sprintf("tcp://0.0.0.0:%d", DindPort)},
-	})
+	err := d.rootCLI.ContainerStart(d.rootCTX, d.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return stacktrace.Propagate(err, "failed to create dind daemon exec in container '%s'.", d.Name)
+		return stacktrace.Propagate(err, "failed to start dind")
 	}
 
-	err = d.rootCLI.ContainerExecStart(d.rootCTX, execResp.ID, types.ExecStartCheck{})
+	d.APIClient, err = d.newClient()
 	if err != nil {
-		return stacktrace.Propagate(err, "failed to start dind daemon exec in container '%s'.", d.Name)
+		return stacktrace.Propagate(err, "failed to create new docker client for dind")
+	}
+
+	err = d.Healthcheck()
+	if err != nil {
+		return stacktrace.Propagate(err, "failed to healthcheck daemon after start")
 	}
 
 	return nil
 }
 
 func (d *Dind) newClient() (client.APIClient, error) {
-	dindEndpoint := fmt.Sprintf("tcp://%s:%s", d.HostAddr, d.HostPort)
+	containerJSON, err := d.rootCLI.ContainerInspect(d.rootCTX, d.ID)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "failed to inspect dind container")
+	}
+
+	hostBinding, err := dockercli.GetHostBinding(containerJSON, DindPort)
+	if err != nil {
+		return nil, stacktrace.NewError("failed to get dind host binding")
+	}
+
+	dindEndpoint := fmt.Sprintf("tcp://%s:%s", hostBinding.HostAddr, hostBinding.HostPort)
 	cli, err := client.NewClient(dindEndpoint, "", nil, nil)
 	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to create docker client for '%s' daemon.", d.Name)
+		return nil, stacktrace.Propagate(err, "failed to create docker client for '%s' daemon", d.Name)
 	}
 
 	return cli, nil
 }
-
-// func (d *Dind) StartMITMProxy() error {
-// 	execResp, err := d.CLI.ContainerExecCreate(d.CTX, d.ID, types.ExecConfig{
-// 		Detach: true,
-// 		Cmd:    []string{"dockerd"},
-// 	})
-// 	if err != nil {
-// 		return stacktrace.Propagate(err, "Failed to create dockerd exec in container '%s'.", d.Name)
-// 	}
-
-// 	err = d.CLI.ContainerExecStart(d.CTX, execResp.ID, types.ExecStartCheck{})
-// 	if err != nil {
-// 		return stacktrace.Propagate(err, "Failed to start dockerd exec in container '%s'.", d.Name)
-// 	}
-// }

@@ -20,7 +20,6 @@ import (
 	"github.com/hinshun/pls/pkg/failsafe"
 	"github.com/hinshun/pls/pkg/namegen"
 	"github.com/palantir/stacktrace"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -167,7 +166,6 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 		}
 		defer preparedArchive.Close()
 
-		logrus.Infof("dst dir: %s", dstDir)
 		err = cli.CopyToContainer(ctx, dind.ID, dstDir, preparedArchive, types.CopyToContainerOptions{})
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "failed to copy registry ca certificate to system certificate directory")

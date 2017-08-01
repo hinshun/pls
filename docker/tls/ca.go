@@ -8,7 +8,6 @@ import (
 
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/palantir/stacktrace"
-	"github.com/sirupsen/logrus"
 )
 
 func NewHTTPClient(options tlsconfig.Options) (*http.Client, error) {
@@ -42,7 +41,6 @@ func WriteCACertificateToFile(client *http.Client, file *os.File, hostAddress st
 		return stacktrace.Propagate(err, "failed to read certificate response body")
 	}
 
-	logrus.Infof("certificate: %s", string(caBytes))
 	_, err = file.Write(caBytes)
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to write certificate to temporary file")

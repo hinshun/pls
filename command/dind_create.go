@@ -3,12 +3,12 @@ package command
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/docker/dind"
 	"github.com/hinshun/pls/docker/dockercli"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 
 	"gopkg.in/urfave/cli.v2"
 )
@@ -20,13 +20,17 @@ func CreateDind(c *cli.Context) error {
 		return stacktrace.Propagate(err, "failed to create docker client from env: %s", err)
 	}
 
-	spec := dind.DindSpec{
-		MITMProxyName: c.String("mitm"),
-	}
-
 	err = dockercli.LazyImageLoad(ctx, cli, dind.DindImageName)
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to load dind image")
+	}
+
+	spec := dind.DindSpec{
+		Name:                  c.String("name"),
+		MITMProxyName:         c.String("mitm"),
+		RegistryServerAddress: c.String("registry"),
+		RegistryUsername:      c.String("username"),
+		RegistryPassword:      c.String("password"),
 	}
 
 	dind, err := dind.New(ctx, cli, spec)

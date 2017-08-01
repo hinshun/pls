@@ -3,7 +3,7 @@ package failsafe
 import (
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 type RetryPolicy struct {

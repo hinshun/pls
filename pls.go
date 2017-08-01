@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/hinshun/pls/command"
+	"github.com/hinshun/pls/docker/dind"
 
 	"gopkg.in/urfave/cli.v2"
 )
@@ -14,18 +15,42 @@ func main() {
 		Usage: "pretty please",
 		Commands: []*cli.Command{
 			{
-				Name: "dind",
+				Name:  "dind",
+				Usage: "Manage Docker in Docker containers",
 				Subcommands: []*cli.Command{
 					{
 						Name:  "create",
 						Usage: "Create a new dind container",
 						Flags: []cli.Flag{
 							&cli.StringFlag{
+								Name:  "name",
+								Usage: "Assign a name to the container",
+							},
+							&cli.StringFlag{
 								Name:  "mitm",
-								Usage: "Man-in-the-Middle proxy to intercept outgoing dockerd traffic",
+								Usage: "Proxy outgoing dockerd traffic to mitmproxy",
+							},
+							&cli.StringFlag{
+								Name:  "registry",
+								Usage: "The server address of a Docker Registry to trust",
+								Value: dind.DefaultRegistryServerAddress,
+							},
+							&cli.StringFlag{
+								Name:  "username",
+								Usage: "The username to authenticate against the Docker Registry",
+							},
+							&cli.StringFlag{
+								Name:  "password",
+								Usage: "The password to authenticate against the Docker Registry",
 							},
 						},
 						Action: WrapAction(command.CreateDind),
+					},
+					{
+						Name:    "list",
+						Aliases: []string{"ls"},
+						Usage:   "List dind containers",
+						Action:  WrapAction(command.ListDinds),
 					},
 					{
 						Name:   "prune",
@@ -35,12 +60,25 @@ func main() {
 				},
 			},
 			{
-				Name: "mitm",
+				Name:  "mitm",
+				Usage: "Manage mitmproxy (Man-in-the-Middle) containers",
 				Subcommands: []*cli.Command{
 					{
-						Name:   "create",
+						Name: "create",
+						Flags: []cli.Flag{
+							&cli.StringFlag{
+								Name:  "name",
+								Usage: "Assign a name to the container",
+							},
+						},
 						Usage:  "Create a new mitmproxy container",
 						Action: WrapAction(command.CreateMITMProxy),
+					},
+					{
+						Name:    "list",
+						Aliases: []string{"ls"},
+						Usage:   "List mitmproxy containers",
+						Action:  WrapAction(command.ListMITMProxies),
 					},
 					{
 						Name:   "prune",

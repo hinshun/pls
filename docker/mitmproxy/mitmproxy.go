@@ -24,6 +24,10 @@ const (
 	MITMProxyDefaultCAFilename  = "mitmproxy-ca-cert.pem"
 )
 
+type MITMProxySpec struct {
+	Name string
+}
+
 type MITMProxy struct {
 	ID      string
 	Name    string
@@ -33,13 +37,17 @@ type MITMProxy struct {
 	rootCLI client.APIClient
 }
 
-func New(ctx context.Context, cli client.APIClient) (*MITMProxy, error) {
-	mitmProxyName, err := namegen.GetUnusedContainerName(ctx, cli, MITMProxyPrefix)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to generate mitmproxy container name")
+func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMProxy, error) {
+	mitmProxyName := spec.Name
+	if mitmProxyName == "" {
+		var err error
+		mitmProxyName, err = namegen.GetUnusedContainerName(ctx, cli, MITMProxyPrefix)
+		if err != nil {
+			return nil, stacktrace.Propagate(err, "failed to generate mitmproxy container name")
+		}
 	}
 
-	_, err = cli.NetworkCreate(ctx, mitmProxyName, types.NetworkCreate{
+	networkResp, err := cli.NetworkCreate(ctx, mitmProxyName, types.NetworkCreate{
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
 		},
@@ -53,6 +61,7 @@ func New(ctx context.Context, cli client.APIClient) (*MITMProxy, error) {
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
 		},
+		Cmd:         []string{"mitmproxy", "--insecure"},
 		Tty:         true,
 		AttachStdin: true,
 		OpenStdin:   true,
@@ -66,15 +75,16 @@ func New(ctx context.Context, cli client.APIClient) (*MITMProxy, error) {
 			},
 		},
 	}
-	netCfg := &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			mitmProxyName: {},
-		},
-	}
+	netCfg := &network.NetworkingConfig{}
 
 	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, mitmProxyName)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy container")
+	}
+
+	err = cli.NetworkConnect(ctx, networkResp.ID, createResp.ID, &network.EndpointSettings{})
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "failed to connect mitmproxy to mitmproxy network")
 	}
 
 	err = cli.ContainerStart(ctx, createResp.ID, types.ContainerStartOptions{})
@@ -106,7 +116,7 @@ func NewFromExisting(ctx context.Context, cli client.APIClient, containerName st
 	}, nil
 }
 
-func (m *MITMProxy) GetCACertificate() (io.ReadCloser, error) {
+func (m *MITMProxy) GetCACertificateTar() (io.ReadCloser, error) {
 	caPath := fmt.Sprintf("%s/%s", MITMProxyDefaultCADirectory, MITMProxyDefaultCAFilename)
 
 	var caStream io.ReadCloser

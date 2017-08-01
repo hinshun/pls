@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -31,6 +30,7 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/opts"
+	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/initlayer"
@@ -1148,6 +1148,8 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 	if pg != nil {
 		options = append(options, nwconfig.OptionPluginGetter(pg))
 	}
+
+	options = append(options, nwconfig.OptionNetworkControlPlaneMTU(dconfig.NetworkControlPlaneMTU))
 
 	return options, nil
 }

@@ -3,11 +3,11 @@ package command
 import (
 	"context"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/docker/dockercli"
 	"github.com/hinshun/pls/docker/mitmproxy"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 
 	"gopkg.in/urfave/cli.v2"
 )
@@ -24,7 +24,11 @@ func CreateMITMProxy(c *cli.Context) error {
 		return stacktrace.Propagate(err, "failed to load mitmproxy image")
 	}
 
-	mitmProxy, err := mitmproxy.New(ctx, cli)
+	spec := mitmproxy.MITMProxySpec{
+		Name: c.String("name"),
+	}
+
+	mitmProxy, err := mitmproxy.New(ctx, cli, spec)
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to create mitmproxy")
 	}

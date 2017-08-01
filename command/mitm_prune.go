@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/docker/mitmproxy"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 
 	"gopkg.in/urfave/cli.v2"
 )

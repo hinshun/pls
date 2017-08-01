@@ -1,11 +1,20 @@
 package: github.com/hinshun/pls
 import:
+- package: github.com/sirupsen/logrus
+  version: master
 - package: github.com/Sirupsen/logrus
+  repo: git@github.com:/sirupsen/logrus
+  vcs: git
+  version: master
+- package: github.com/docker/cli
+  subpackages:
+  - cli/command/formatter
 - package: github.com/docker/docker
   subpackages:
   - api/types
   - api/types/container
   - api/types/filters
+  - api/types/mount
   - api/types/network
   - client
 - package: github.com/docker/go-connections
@@ -13,3 +22,5 @@ import:
   - nat
 - package: github.com/palantir/stacktrace
 - package: gopkg.in/urfave/cli.v2
+- package: golang.org/x/crypto
+  version: 558b6879de74bc843225cde5686419267ff707ca 

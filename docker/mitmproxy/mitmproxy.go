@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
+	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/pkg/failsafe"
 	"github.com/hinshun/pls/pkg/namegen"
@@ -54,6 +55,16 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 	})
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy network")
+	}
+
+	_, err = cli.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
+		Name: mitmProxyName,
+		Labels: map[string]string{
+			"pls": MITMProxyPrefix,
+		},
+	})
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "failed to create mitmproxy volume")
 	}
 
 	cfg := &container.Config{

@@ -56,5 +56,14 @@ func PruneMITMProxies(c *cli.Context) error {
 		logrus.Infof("Deleted network '%s'", network)
 	}
 
+	volumeReport, err := cli.VolumesPrune(ctx, pruneFilter)
+	if err != nil {
+		return stacktrace.Propagate(err, "failed to prune mitmproxy volumes")
+	}
+
+	for _, volume := range volumeReport.VolumesDeleted {
+		logrus.Infof("Deleted volume '%s'", volume)
+	}
+
 	return nil
 }

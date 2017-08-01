@@ -5,5 +5,8 @@ vendor:
 	glide install --strip-vendor
 	gofmt -w -r '"github.com/Sirupsen/logrus" -> "github.com/sirupsen/logrus"' ./
 
+clean:
+	rm pls
+
 .PHONY: pls
 

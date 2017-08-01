@@ -15,6 +15,7 @@ import (
 	"github.com/hinshun/pls/pkg/failsafe"
 	"github.com/hinshun/pls/pkg/namegen"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,6 +49,7 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		}
 	}
 
+	logrus.Infof("Creating network '%s'", mitmProxyName)
 	networkResp, err := cli.NetworkCreate(ctx, mitmProxyName, types.NetworkCreate{
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
@@ -57,6 +59,7 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy network")
 	}
 
+	logrus.Infof("Creating volume '%s'", mitmProxyName)
 	_, err = cli.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
 		Name: mitmProxyName,
 		Labels: map[string]string{
@@ -88,6 +91,7 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 	}
 	netCfg := &network.NetworkingConfig{}
 
+	logrus.Infof("Creating container '%s'", mitmProxyName)
 	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, mitmProxyName)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy container")
@@ -98,6 +102,7 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		return nil, stacktrace.Propagate(err, "failed to connect mitmproxy to mitmproxy network")
 	}
 
+	logrus.Infof("Starting mitmproxy")
 	err = cli.ContainerStart(ctx, createResp.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to start mitmproxy container")

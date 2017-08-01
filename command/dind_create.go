@@ -3,12 +3,10 @@ package command
 import (
 	"context"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/hinshun/pls/docker/dind"
 	"github.com/hinshun/pls/docker/dockercli"
 	"github.com/palantir/stacktrace"
-	"github.com/sirupsen/logrus"
 
 	"gopkg.in/urfave/cli.v2"
 )
@@ -33,19 +31,10 @@ func CreateDind(c *cli.Context) error {
 		RegistryPassword:      c.String("password"),
 	}
 
-	dind, err := dind.New(ctx, cli, spec)
+	_, err = dind.New(ctx, cli, spec)
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to create new dind")
 	}
-
-	logrus.Infof("Created dind container '%s'", dind.Name)
-
-	dindContainers, err := dind.ContainerList(ctx, types.ContainerListOptions{})
-	if err != nil {
-		return stacktrace.Propagate(err, "failed to get dind containers")
-	}
-
-	logrus.Infof("Dind containers: %s", dindContainers)
 
 	return nil
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/hinshun/pls/pkg/failsafe"
 	"github.com/hinshun/pls/pkg/namegen"
 	"github.com/palantir/stacktrace"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -96,6 +97,7 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 	}
 	netCfg := &network.NetworkingConfig{}
 
+	logrus.Infof("Creating container '%s'", dindName)
 	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, dindName)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to create dind container")
@@ -115,6 +117,7 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 			return nil, stacktrace.Propagate(err, "failed to connect dind to mitmproxy network")
 		}
 
+		logrus.Info("Trusting mitmproxy's CA certificate")
 		caTarStream, err := mitmProxy.GetCACertificateTar()
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "failed to get mitmproxy ca certificate")
@@ -128,6 +131,7 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 	}
 
 	if spec.RegistryServerAddress != DefaultRegistryServerAddress {
+		logrus.Infof("Trusting registry '%s' CA certificate", spec.RegistryServerAddress)
 		httpClient, err := tls.NewHTTPClient(tlsconfig.Options{
 			InsecureSkipVerify: true,
 		})
@@ -178,6 +182,7 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 	}
 
 	if spec.RegistryUsername != "" && spec.RegistryPassword != "" {
+		logrus.Infof("Logging in to registry '%s'", spec.RegistryServerAddress)
 		execResp, err := cli.ContainerExecCreate(ctx, dind.ID, types.ExecConfig{
 			Cmd: []string{"docker", "login", "-u", spec.RegistryUsername, "-p", spec.RegistryPassword, spec.RegistryServerAddress},
 		})
@@ -207,6 +212,7 @@ func (d *Dind) Healthcheck() error {
 }
 
 func (d *Dind) startDaemon() error {
+	logrus.Infof("Starting docker daemon")
 	err := d.rootCLI.ContainerStart(d.rootCTX, d.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return stacktrace.Propagate(err, "failed to start dind")

@@ -61,6 +61,12 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 		}
 	}
 
+	dindTCPPort := fmt.Sprintf("%d/tcp", DindPort)
+	exposedPorts, err := dockercli.NewPortSet(dindTCPPort)
+	if err != nil {
+		return nil, stacktrace.Propagate(err, "failed to create dind port")
+	}
+
 	var (
 		dindCmd   []string
 		mitmProxy *mitmproxy.MITMProxy
@@ -72,15 +78,13 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 			return nil, stacktrace.Propagate(err, "failed to create reference from existing mitmproxy container")
 		}
 
-		dindCmd = append(dindCmd, "update-ca-certificates;", fmt.Sprintf("HTTPS_PROXY=%s:%d", mitmProxy.Name, mitmproxy.MITMProxyPort))
+		dindCmd = append(dindCmd, fmt.Sprintf("HTTPS_PROXY=%s:%d", mitmProxy.Name, mitmproxy.MITMProxyPort))
 	}
-	dindCmd = append(dindCmd, "dockerd", "-H", fmt.Sprintf("unix://%s", DockerSocketPath), "-H", fmt.Sprintf("tcp://0.0.0.0:%d", DindPort))
 
-	dindTCPPort := fmt.Sprintf("%d/tcp", DindPort)
-	exposedPorts, err := dockercli.NewPortSet(dindTCPPort)
-	if err != nil {
-		return nil, stacktrace.Propagate(err, "failed to create dind port")
-	}
+	// Listen on TCP and through the unix socket.
+	dindCmd = append(dindCmd, "dockerd", "-H", fmt.Sprintf("unix://%s", DockerSocketPath), "-H", fmt.Sprintf("tcp://0.0.0.0:%d", DindPort))
+	// Update trusted CA certificates on startup.
+	dindCmd = append([]string{"update-ca-certificates;"}, dindCmd...)
 
 	cfg := &container.Config{
 		Image: DindImageName,

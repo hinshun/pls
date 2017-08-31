@@ -1,4 +1,4 @@
-// +build linux,386 linux,amd64 linux,arm64 s390x
+// +build linux,386 linux,amd64 linux,arm64
 
 package platform
 

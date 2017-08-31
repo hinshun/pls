@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/opencontainers/runc/libcontainer/cgroups"
-
 	"github.com/sirupsen/logrus"
 )
 
@@ -84,11 +83,6 @@ func expectMemoryStatEquals(t *testing.T, expected, actual cgroups.MemoryStats) 
 	expectMemoryDataEquals(t, expected.Usage, actual.Usage)
 	expectMemoryDataEquals(t, expected.SwapUsage, actual.SwapUsage)
 	expectMemoryDataEquals(t, expected.KernelUsage, actual.KernelUsage)
-
-	if expected.UseHierarchy != actual.UseHierarchy {
-		logrus.Printf("Expected memory use hiearchy %v, but found %v\n", expected.UseHierarchy, actual.UseHierarchy)
-		t.Fail()
-	}
 
 	for key, expValue := range expected.Stats {
 		actValue, ok := actual.Stats[key]

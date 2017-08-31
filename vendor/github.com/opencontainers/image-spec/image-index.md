@@ -46,42 +46,28 @@ For the media type(s) that this document is compatible with, see the [matrix][ma
     - **`architecture`** *string*
 
         This REQUIRED property specifies the CPU architecture.
-        Image indexes SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for [`GOARCH`][go-environment2].
+        Image indexes SHOULD use, and implementations SHOULD understand, values [supported by runtime-spec's `platform.arch`][runtime-platform2].
 
     - **`os`** *string*
 
         This REQUIRED property specifies the operating system.
-        Image indexes SHOULD use, and implementations SHOULD understand, values listed in the Go Language document for [`GOOS`][go-environment2].
+        Image indexes SHOULD use, and implementations SHOULD understand, values [supported by runtime-spec's `platform.os`][runtime-platform2].
 
     - **`os.version`** *string*
 
-        This OPTIONAL property specifies the version of the operating system targeted by the referenced blob.
-        Implementations MAY refuse to use manifests where `os.version` is not known to work with the host OS version.
-        Valid values are implementation-defined. e.g. `10.0.14393.1066` on `windows`.
+        This OPTIONAL property specifies the operating system version, for example `10.0.10586`.
 
     - **`os.features`** *array of strings*
 
-        This OPTIONAL property specifies an array of strings, each specifying a mandatory OS feature.
-        When `os` is `windows`, image indexes SHOULD use, and implementations SHOULD understand the following values:
-          - `win32k`: image requires `win32k.sys` on the host (Note: `win32k.sys` is missing on Nano Server)
-        When `os` is not `windows`, values are implementation-defined and SHOULD be submitted to this specification for standardization.
+        This OPTIONAL property specifies an array of strings, each specifying a mandatory OS feature (for example on Windows `win32k`).
 
     - **`variant`** *string*
 
-        This OPTIONAL property specifies the variant of the CPU.
-        Image indexes SHOULD use, and implementations SHOULD understand, values listed in the following table.
-        When the variant of the CPU is not listed in the table, values are implementation-defined and SHOULD be submitted to this specification for standardization.
-
-        | ISA/ABI         | `architecture` | `variant`   |
-        |-----------------|----------------|-------------|
-        | ARM 32-bit, v6  | `arm`          | `v6`        |
-        | ARM 32-bit, v7  | `arm`          | `v7`        |
-        | ARM 32-bit, v8  | `arm`          | `v8`        |
-        | ARM 64-bit, v8  | `arm64`        | `v8`        |
+        This OPTIONAL property specifies the variant of the CPU, for example `armv6l` to specify a particular CPU variant of the ARM CPU.
 
     - **`features`** *array of strings*
 
-        This property is RESERVED for future versions of the specification.
+        This OPTIONAL property specifies an array of strings, each specifying a mandatory CPU feature (for example `sse4` or `aes`).
 
 - **`annotations`** *string-string map*
 
@@ -112,7 +98,10 @@ For the media type(s) that this document is compatible with, see the [matrix][ma
       "digest": "sha256:5b0bcabd1ed22e9fb1310cf6c2dec7cdef19f0ad69efa1f392e94a4333501270",
       "platform": {
         "architecture": "amd64",
-        "os": "linux"
+        "os": "linux",
+        "os.features": [
+          "sse4"
+        ]
       }
     }
   ],
@@ -123,5 +112,5 @@ For the media type(s) that this document is compatible with, see the [matrix][ma
 }
 ```
 
-[go-environment2]: https://golang.org/doc/install/source#environment
+[runtime-platform2]: https://github.com/opencontainers/runtime-spec/blob/v1.0.0-rc3/config.md#platform
 [matrix]: media-types.md#compatibility-matrix

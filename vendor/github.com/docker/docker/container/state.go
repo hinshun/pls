@@ -278,9 +278,7 @@ func (s *State) SetRunning(pid int, initial bool) {
 	s.ErrorMsg = ""
 	s.Running = true
 	s.Restarting = false
-	if initial {
-		s.Paused = false
-	}
+	s.Paused = false
 	s.ExitCodeValue = 0
 	s.Pid = pid
 	if initial {

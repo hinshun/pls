@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
 	swarmapi "github.com/docker/swarmkit/api"
 	google_protobuf3 "github.com/gogo/protobuf/types"
 )
@@ -83,8 +82,7 @@ func TestServiceConvertFromGRPCGenericRuntimePlugin(t *testing.T) {
 func TestServiceConvertToGRPCGenericRuntimePlugin(t *testing.T) {
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{
-			Runtime:    swarmtypes.RuntimePlugin,
-			PluginSpec: &runtime.PluginSpec{},
+			Runtime: swarmtypes.RuntimePlugin,
 		},
 		Mode: swarmtypes.ServiceMode{
 			Global: &swarmtypes.GlobalService{},
@@ -110,7 +108,7 @@ func TestServiceConvertToGRPCContainerRuntime(t *testing.T) {
 	image := "alpine:latest"
 	s := swarmtypes.ServiceSpec{
 		TaskTemplate: swarmtypes.TaskSpec{
-			ContainerSpec: &swarmtypes.ContainerSpec{
+			ContainerSpec: swarmtypes.ContainerSpec{
 				Image: image,
 			},
 		},

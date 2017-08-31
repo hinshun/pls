@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
@@ -64,7 +63,6 @@ type Manager struct {
 	cMap             map[*v2.Plugin]*controller
 	containerdClient libcontainerd.Client
 	blobStore        *basicBlobStore
-	publisher        *pubsub.Publisher
 }
 
 // controller represents the manager's control on a plugin.
@@ -119,8 +117,6 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	if err := manager.reload(); err != nil {
 		return nil, errors.Wrap(err, "failed to restore plugins")
 	}
-
-	manager.publisher = pubsub.NewPublisher(0, 0)
 	return manager, nil
 }
 
@@ -270,11 +266,6 @@ func (pm *Manager) reload() error { // todo: restore
 	}
 	wg.Wait()
 	return nil
-}
-
-// Get looks up the requested plugin in the store.
-func (pm *Manager) Get(idOrName string) (*v2.Plugin, error) {
-	return pm.config.Store.GetV2Plugin(idOrName)
 }
 
 func (pm *Manager) loadPlugin(id string) (*v2.Plugin, error) {

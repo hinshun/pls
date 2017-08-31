@@ -23,13 +23,6 @@ type atomicBool int32
 func (b *atomicBool) isSet() bool { return atomic.LoadInt32((*int32)(b)) != 0 }
 func (b *atomicBool) setFalse()   { atomic.StoreInt32((*int32)(b), 0) }
 func (b *atomicBool) setTrue()    { atomic.StoreInt32((*int32)(b), 1) }
-func (b *atomicBool) swap(new bool) bool {
-	var newInt int32
-	if new {
-		newInt = 1
-	}
-	return atomic.SwapInt32((*int32)(b), newInt) == 1
-}
 
 const (
 	cFILE_SKIP_COMPLETION_PORT_ON_SUCCESS = 1
@@ -78,7 +71,7 @@ func initIo() {
 type win32File struct {
 	handle        syscall.Handle
 	wg            sync.WaitGroup
-	closing       atomicBool
+	closing       bool
 	readDeadline  deadlineHandler
 	writeDeadline deadlineHandler
 }
@@ -114,9 +107,9 @@ func MakeOpenFile(h syscall.Handle) (io.ReadWriteCloser, error) {
 
 // closeHandle closes the resources associated with a Win32 handle
 func (f *win32File) closeHandle() {
-	// Atomically set that we are closing, releasing the resources only once.
-	if !f.closing.swap(true) {
+	if !f.closing {
 		// cancel all IO and wait for it to complete
+		f.closing = true
 		cancelIoEx(f.handle, nil)
 		f.wg.Wait()
 		// at this point, no new IO can start
@@ -134,10 +127,10 @@ func (f *win32File) Close() error {
 // prepareIo prepares for a new IO operation.
 // The caller must call f.wg.Done() when the IO is finished, prior to Close() returning.
 func (f *win32File) prepareIo() (*ioOperation, error) {
-	if f.closing.isSet() {
+	f.wg.Add(1)
+	if f.closing {
 		return nil, ErrFileClosed
 	}
-	f.wg.Add(1)
 	c := &ioOperation{}
 	c.ch = make(chan ioResult)
 	return c, nil
@@ -166,7 +159,7 @@ func (f *win32File) asyncIo(c *ioOperation, d *deadlineHandler, bytes uint32, er
 		return int(bytes), err
 	}
 
-	if f.closing.isSet() {
+	if f.closing {
 		cancelIoEx(f.handle, &c.o)
 	}
 
@@ -182,7 +175,7 @@ func (f *win32File) asyncIo(c *ioOperation, d *deadlineHandler, bytes uint32, er
 	case r = <-c.ch:
 		err = r.err
 		if err == syscall.ERROR_OPERATION_ABORTED {
-			if f.closing.isSet() {
+			if f.closing {
 				err = ErrFileClosed
 			}
 		}

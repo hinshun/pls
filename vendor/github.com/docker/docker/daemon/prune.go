@@ -74,8 +74,8 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 	for _, c := range allContainers {
 		select {
 		case <-ctx.Done():
-			logrus.Debugf("ContainersPrune operation cancelled: %#v", *rep)
-			return rep, nil
+			logrus.Warnf("ContainersPrune operation cancelled: %#v", *rep)
+			return rep, ctx.Err()
 		default:
 		}
 
@@ -121,7 +121,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 	pruneVols := func(v volume.Volume) error {
 		select {
 		case <-ctx.Done():
-			logrus.Debugf("VolumesPrune operation cancelled: %#v", *rep)
+			logrus.Warnf("VolumesPrune operation cancelled: %#v", *rep)
 			return ctx.Err()
 		default:
 		}
@@ -153,9 +153,6 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 	}
 
 	err = daemon.traverseLocalVolumes(pruneVols)
-	if err == context.Canceled {
-		return rep, nil
-	}
 
 	return rep, err
 }
@@ -306,7 +303,8 @@ deleteImagesLoop:
 	}
 
 	if canceled {
-		logrus.Debugf("ImagesPrune operation cancelled: %#v", *rep)
+		logrus.Warnf("ImagesPrune operation cancelled: %#v", *rep)
+		return nil, ctx.Err()
 	}
 
 	return rep, nil
@@ -322,7 +320,6 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 	l := func(nw libnetwork.Network) bool {
 		select {
 		case <-ctx.Done():
-			// context cancelled
 			return true
 		default:
 		}
@@ -373,7 +370,7 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 	for _, nw := range networks {
 		select {
 		case <-ctx.Done():
-			return rep, nil
+			return rep, ctx.Err()
 		default:
 			if nw.Ingress {
 				// Routing-mesh network removal has to be explicitly invoked by user
@@ -430,8 +427,8 @@ func (daemon *Daemon) NetworksPrune(ctx context.Context, pruneFilters filters.Ar
 
 	select {
 	case <-ctx.Done():
-		logrus.Debugf("NetworksPrune operation cancelled: %#v", *rep)
-		return rep, nil
+		logrus.Warnf("NetworksPrune operation cancelled: %#v", *rep)
+		return nil, ctx.Err()
 	default:
 	}
 

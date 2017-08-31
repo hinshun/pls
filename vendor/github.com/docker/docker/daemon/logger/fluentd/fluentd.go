@@ -189,7 +189,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		}
 	}
 
-	_, err := parseAddress(cfg[addressKey])
+	_, err := parseAddress(cfg["fluentd-address"])
 	return err
 }
 

@@ -4,8 +4,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/docker/cli/cli/internal/test"
-	"github.com/docker/docker/pkg/testutil"
+	"github.com/docker/cli/internal/test"
+	"github.com/docker/cli/internal/test/testutil"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -17,7 +17,7 @@ func TestNetworkDisconnectErrors(t *testing.T) {
 		expectedError         string
 	}{
 		{
-			expectedError: "requires exactly 2 argument(s)",
+			expectedError: "requires exactly 2 arguments",
 		},
 		{
 			args: []string{"toto", "titi"},

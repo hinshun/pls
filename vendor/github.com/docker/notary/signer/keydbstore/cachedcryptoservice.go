@@ -9,12 +9,12 @@ import (
 
 type cachedKeyService struct {
 	signed.CryptoService
-	lock       *sync.RWMutex
+	lock       *sync.Mutex
 	cachedKeys map[string]*cachedKey
 }
 
 type cachedKey struct {
-	role data.RoleName
+	role string
 	key  data.PrivateKey
 }
 
@@ -22,14 +22,14 @@ type cachedKey struct {
 func NewCachedKeyService(baseKeyService signed.CryptoService) signed.CryptoService {
 	return &cachedKeyService{
 		CryptoService: baseKeyService,
-		lock:          &sync.RWMutex{},
+		lock:          &sync.Mutex{},
 		cachedKeys:    make(map[string]*cachedKey),
 	}
 }
 
 // AddKey stores the contents of a private key. Both role and gun are ignored,
 // we always use Key IDs as name, and don't support aliases
-func (s *cachedKeyService) AddKey(role data.RoleName, gun data.GUN, privKey data.PrivateKey) error {
+func (s *cachedKeyService) AddKey(role, gun string, privKey data.PrivateKey) error {
 	if err := s.CryptoService.AddKey(role, gun, privKey); err != nil {
 		return err
 	}
@@ -46,10 +46,8 @@ func (s *cachedKeyService) AddKey(role data.RoleName, gun data.GUN, privKey data
 }
 
 // GetKey returns the PrivateKey given a KeyID
-func (s *cachedKeyService) GetPrivateKey(keyID string) (data.PrivateKey, data.RoleName, error) {
-	s.lock.RLock()
+func (s *cachedKeyService) GetPrivateKey(keyID string) (data.PrivateKey, string, error) {
 	cachedKeyEntry, ok := s.cachedKeys[keyID]
-	s.lock.RUnlock()
 	if ok {
 		return cachedKeyEntry.key, cachedKeyEntry.role, nil
 	}

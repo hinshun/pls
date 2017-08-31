@@ -67,7 +67,6 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 	if err := pm.disable(p, c); err != nil {
 		return err
 	}
-	pm.publisher.Publish(EventDisable{Plugin: p.PluginObj})
 	pm.config.LogPluginEvent(p.GetID(), refOrID, "disable")
 	return nil
 }
@@ -83,7 +82,6 @@ func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) erro
 	if err := pm.enable(p, c, false); err != nil {
 		return err
 	}
-	pm.publisher.Publish(EventEnable{Plugin: p.PluginObj})
 	pm.config.LogPluginEvent(p.GetID(), refOrID, "enable")
 	return nil
 }
@@ -298,7 +296,7 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 }
 
 // Pull pulls a plugin, check if the correct privileges are provided and install the plugin.
-func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer, opts ...CreateOpt) (err error) {
+func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, metaHeader http.Header, authConfig *types.AuthConfig, privileges types.PluginPrivileges, outStream io.Writer) (err error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 
@@ -342,19 +340,12 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 		return err
 	}
 
-	refOpt := func(p *v2.Plugin) {
-		p.PluginObj.PluginReference = ref.String()
-	}
-	optsList := make([]CreateOpt, 0, len(opts)+1)
-	optsList = append(optsList, opts...)
-	optsList = append(optsList, refOpt)
-
-	p, err := pm.createPlugin(name, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges, optsList...)
+	p, err := pm.createPlugin(name, dm.configDigest, dm.blobs, tmpRootFSDir, &privileges)
 	if err != nil {
 		return err
 	}
+	p.PluginObj.PluginReference = ref.String()
 
-	pm.publisher.Publish(EventCreate{Plugin: p.PluginObj})
 	return nil
 }
 
@@ -649,7 +640,6 @@ func (pm *Manager) Remove(name string, config *types.PluginRmConfig) error {
 	}
 	pm.config.Store.Remove(p)
 	pm.config.LogPluginEvent(id, name, "remove")
-	pm.publisher.Publish(EventRemove{Plugin: p.PluginObj})
 	return nil
 }
 
@@ -781,7 +771,6 @@ func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, 
 	}
 	p.PluginObj.PluginReference = name
 
-	pm.publisher.Publish(EventCreate{Plugin: p.PluginObj})
 	pm.config.LogPluginEvent(p.PluginObj.ID, name, "create")
 
 	return nil

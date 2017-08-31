@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/urfave/cli"
@@ -29,9 +30,9 @@ command(s) that get executed on start, edit the args parameter of the spec. See
 			Usage: `path to the root of the bundle directory, defaults to the current directory`,
 		},
 		cli.StringFlag{
-			Name:  "console-socket",
+			Name:  "console",
 			Value: "",
-			Usage: "path to an AF_UNIX socket which will receive a file descriptor referencing the master end of the console's pseudoterminal",
+			Usage: "specify the pty slave path for use with the container",
 		},
 		cli.StringFlag{
 			Name:  "pid-file",
@@ -46,23 +47,18 @@ command(s) that get executed on start, edit the args parameter of the spec. See
 			Name:  "no-new-keyring",
 			Usage: "do not create a new session keyring for the container.  This will cause the container to inherit the calling processes session key",
 		},
-		cli.IntFlag{
-			Name:  "preserve-fds",
-			Usage: "Pass N additional file descriptors to the container (stdio + $LISTEN_FDS + N in total)",
-		},
 	},
 	Action: func(context *cli.Context) error {
-		if err := checkArgs(context, 1, exactArgs); err != nil {
-			return err
-		}
-		if err := revisePidFile(context); err != nil {
-			return err
+		if context.NArg() != 1 {
+			fmt.Printf("Incorrect Usage.\n\n")
+			cli.ShowCommandHelp(context, "create")
+			return fmt.Errorf("runc: \"create\" requires exactly one argument")
 		}
 		spec, err := setupSpec(context)
 		if err != nil {
 			return err
 		}
-		status, err := startContainer(context, spec, CT_ACT_CREATE, nil)
+		status, err := startContainer(context, spec, true)
 		if err != nil {
 			return err
 		}

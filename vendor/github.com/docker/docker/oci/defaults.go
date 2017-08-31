@@ -91,7 +91,7 @@ func DefaultLinuxSpec() specs.Spec {
 			Destination: "/dev",
 			Type:        "tmpfs",
 			Source:      "tmpfs",
-			Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			Options:     []string{"nosuid", "strictatime", "mode=755"},
 		},
 		{
 			Destination: "/dev/pts",

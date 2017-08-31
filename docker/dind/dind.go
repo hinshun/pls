@@ -35,6 +35,7 @@ const (
 
 type DindSpec struct {
 	Name                  string
+	Image                 string
 	MITMProxyName         string
 	RegistryServerAddress string
 	RegistryUsername      string
@@ -87,7 +88,7 @@ func New(ctx context.Context, cli client.APIClient, spec DindSpec) (*Dind, error
 	dindCmd = append([]string{"update-ca-certificates;"}, dindCmd...)
 
 	cfg := &container.Config{
-		Image: DindImageName,
+		Image: spec.Image,
 		Labels: map[string]string{
 			"pls": DindPrefix,
 		},

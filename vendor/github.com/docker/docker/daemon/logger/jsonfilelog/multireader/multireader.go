@@ -46,9 +46,7 @@ func (r *multiReadSeeker) Seek(offset int64, whence int) (int64, error) {
 			rdrOffset := offset - tmpOffset
 			idx := i
 
-			if _, err := rdr.Seek(rdrOffset, os.SEEK_SET); err != nil {
-				return -1, err
-			}
+			rdr.Seek(rdrOffset, os.SEEK_SET)
 			// make sure all following readers are at 0
 			for _, rdr := range r.readers[i+1:] {
 				rdr.Seek(0, os.SEEK_SET)
@@ -69,9 +67,7 @@ func (r *multiReadSeeker) Seek(offset int64, whence int) (int64, error) {
 			}
 			tmpOffset += s
 		}
-		if _, err := r.Seek(tmpOffset+offset, os.SEEK_SET); err != nil {
-			return -1, err
-		}
+		r.Seek(tmpOffset+offset, os.SEEK_SET)
 		return tmpOffset + offset, nil
 	case os.SEEK_CUR:
 		if r.pos == nil {

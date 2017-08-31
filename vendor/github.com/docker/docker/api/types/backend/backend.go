@@ -35,7 +35,7 @@ type LogMessage struct {
 	Line      []byte
 	Source    string
 	Timestamp time.Time
-	Attrs     []LogAttr
+	Attrs     LogAttributes
 	Partial   bool
 
 	// Err is an error associated with a message. Completeness of a message
@@ -44,11 +44,9 @@ type LogMessage struct {
 	Err error
 }
 
-// LogAttr is used to hold the extra attributes available in the log message.
-type LogAttr struct {
-	Key   string
-	Value string
-}
+// LogAttributes is used to hold the extra attributes available in the log message
+// Primarily used for converting the map type to string and sorting.
+type LogAttributes map[string]string
 
 // LogSelector is a list of services and tasks that should be returned as part
 // of a log stream. It is similar to swarmapi.LogSelector, with the difference

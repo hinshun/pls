@@ -30,9 +30,7 @@ import (
 	"github.com/docker/notary/utils"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	ghealth "google.golang.org/grpc/health"
-	healthpb "google.golang.org/grpc/health/grpc_health_v1"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/dancannon/gorethink.v2"
 )
 
 const (
@@ -70,7 +68,7 @@ func parseSignerConfig(configFilePath string, doBootstrap bool) (signer.Config, 
 	}
 
 	// setup the cryptoservices
-	cryptoServices, err := setUpCryptoservices(config, notary.NotarySupportedBackends, doBootstrap)
+	cryptoServices, err := setUpCryptoservices(config, []string{notary.MySQLBackend, notary.MemoryBackend, notary.RethinkDBBackend}, doBootstrap)
 	if err != nil {
 		return signer.Config{}, err
 	}
@@ -144,7 +142,7 @@ func setUpCryptoservices(configuration *viper.Viper, allowedBackends []string, d
 		} else {
 			keyService = keydbstore.NewCachedKeyService(s)
 		}
-	case notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend:
+	case notary.MySQLBackend, notary.SQLiteBackend:
 		storeConfig, err := utils.ParseSQLStorage(configuration)
 		if err != nil {
 			return nil, err
@@ -198,11 +196,12 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 	//RPC server setup
 	kms := &api.KeyManagementServer{
 		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
 	}
 	ss := &api.SignerServer{
 		CryptoServices: signerConfig.CryptoServices,
+		HealthChecker:  health.CheckStatus,
 	}
-	hs := ghealth.NewServer()
 
 	lis, err := net.Listen("tcp", signerConfig.GRPCAddr)
 	if err != nil {
@@ -216,13 +215,6 @@ func setupGRPCServer(signerConfig signer.Config) (*grpc.Server, net.Listener, er
 
 	pb.RegisterKeyManagementServer(grpcServer, kms)
 	pb.RegisterSignerServer(grpcServer, ss)
-	healthpb.RegisterHealthServer(grpcServer, hs)
-
-	// Set status for both of the grpc service "KeyManagement" and "Signer", these are
-	// the only two we have at present, if we add more grpc service in the future,
-	// we should add a new line for that service here as well.
-	hs.SetServingStatus(notary.HealthCheckKeyManagement, healthpb.HealthCheckResponse_SERVING)
-	hs.SetServingStatus(notary.HealthCheckSigner, healthpb.HealthCheckResponse_SERVING)
 
 	return grpcServer, lis, nil
 }
@@ -244,7 +236,7 @@ func getAddrAndTLSConfig(configuration *viper.Viper) (string, *tls.Config, error
 func bootstrap(s interface{}) error {
 	store, ok := s.(storage.Bootstrapper)
 	if !ok {
-		return fmt.Errorf("store does not support bootstrapping")
+		return fmt.Errorf("Store does not support bootstrapping.")
 	}
 	return store.Bootstrap()
 }

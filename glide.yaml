@@ -1,26 +1,195 @@
 package: github.com/hinshun/pls
 import:
+- package: github.com/Azure/go-ansiterm
+  version: 388960b655244e76e24c75f48631564eaefade62
+  subpackages:
+  - winterm
+- package: github.com/docker/cli
+  version: d8179676473036edb9c00222b1bb32f85a7911a5
+  subpackages:
+  - cli
+  - cli/command
+  - cli/command/formatter
+  - cli/command/inspect
+  - cli/config
+  - cli/config/configfile
+  - cli/config/credentials
+  - cli/flags
+  - opts
+  - templates
+- package: github.com/docker/distribution
+  version: b38e5838b7b2f2ad48e06ec4b500011976080621
+  subpackages:
+  - digestset
+  - reference
+  - registry/api/errcode
+  - registry/api/v2
+  - registry/client
+  - registry/client/auth
+  - registry/client/auth/challenge
+  - registry/client/transport
+  - registry/storage/cache
+  - registry/storage/cache/memory
+- package: github.com/docker/docker
+  version: d58ffa0364c04d03a8f25704d7f0489ee6cd9634
+  subpackages:
+  - api
+  - api/types
+  - api/types/blkiodev
+  - api/types/container
+  - api/types/events
+  - api/types/filters
+  - api/types/image
+  - api/types/mount
+  - api/types/network
+  - api/types/registry
+  - api/types/strslice
+  - api/types/swarm
+  - api/types/swarm/runtime
+  - api/types/time
+  - api/types/versions
+  - api/types/volume
+  - client
+  - pkg/archive
+  - pkg/fileutils
+  - pkg/homedir
+  - pkg/idtools
+  - pkg/ioutils
+  - pkg/jsonlog
+  - pkg/jsonmessage
+  - pkg/longpath
+  - pkg/mount
+  - pkg/pools
+  - pkg/promise
+  - pkg/stringid
+  - pkg/stringutils
+  - pkg/system
+  - pkg/tarsum
+  - pkg/term
+  - pkg/term/windows
+  - pkg/tlsconfig
+  - registry
+  - registry/resumable
+- package: github.com/docker/docker-credential-helpers
+  version: 0e7779e5a19c95403a1dbfea7beafe0852754c29
+  subpackages:
+  - client
+  - credentials
+- package: github.com/docker/go
+  version: d30aec9fd63c35133f8f79c3412ad91a3b08be06
+- package: github.com/docker/go-connections
+  version: 3ede32e2033de7505e6500d6c868c2b9ed9f169d
+  subpackages:
+  - nat
+  - sockets
+  - tlsconfig
+- package: github.com/docker/go-units
+  version: 9e638d38cf6977a37a8ea0078f3ee75a7cdb2dd1
+- package: github.com/docker/libtrust
+  version: 9cbd2a1374f46905c68a4eb3694a130610adc62a
+- package: github.com/docker/notary
+  version: c8aa8cf53cbcda2e92def0c9291e25d770493494
+  subpackages:
+  - passphrase
+- package: github.com/gogo/protobuf
+  version: 7efa791bd276fd4db00867cbd982b552627c24cb
+  subpackages:
+  - proto
+- package: github.com/golang/protobuf
+  version: 7a211bcf3bce0e3f1d74f9894916e6f116ae83b4
+  subpackages:
+  - proto
+- package: github.com/gorilla/context
+  version: 1ea25387ff6f684839d82767c1733ff4d4d15d0a
+- package: github.com/gorilla/mux
+  version: 0eeaf8392f5b04950925b8a69fe70f110fa7cbfc
+- package: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- package: github.com/Microsoft/go-winio
+  version: f533f7a102197536779ea3a8cb881d639e21ec5a
+- package: github.com/Nvveen/Gotty
+  repo: git@github.com:ijc25/Gotty
+  version: a8b993ba6abdb0e0c12b0125c603323a71c7790c
+- package: github.com/opencontainers/go-digest
+  version: a6d0ee40d4207ea02364bd3b9e8e77b9159ba1eb
+- package: github.com/opencontainers/image-spec
+  version: f03dbe35d449c54915d235f1a3cf8f585a24babe
+  subpackages:
+  - specs-go
+  - specs-go/v1
+- package: github.com/opencontainers/runc
+  version: 9c2d8d184e5da67c95d601382adf14862e4f2228
+  repo: git@github.com:docker/runc
+  subpackages:
+  - libcontainer/system
+  - libcontainer/user
+- package: github.com/palantir/stacktrace
+  version: 78658fd2d1772b755720ed8c44367d11ee5380d6
+  subpackages:
+  - cleanpath
+- package: github.com/pkg/errors
+  version: 839d9e913e063e28dfd0e6c7b7512793e0a48be9
 - package: github.com/sirupsen/logrus
   version: master
 - package: github.com/Sirupsen/logrus
-  repo: git@github.com:/sirupsen/logrus
-  vcs: git
   version: master
-- package: github.com/docker/cli
-  subpackages:
-  - cli/command/formatter
-- package: github.com/docker/docker
-  subpackages:
-  - api/types
-  - api/types/container
-  - api/types/filters
-  - api/types/mount
-  - api/types/network
-  - client
-- package: github.com/docker/go-connections
-  subpackages:
-  - nat
-- package: github.com/palantir/stacktrace
-- package: gopkg.in/urfave/cli.v2
+  repo: git@github.com:sirupsen/logrus
+  vcs: git
+- package: github.com/spf13/cobra
+  repo: git@github.com:dnephin/cobra
+  version: 0e9ca70a23585bdaab4beba1e7c4c23a1adfa857
+- package: github.com/spf13/pflag
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+- package: github.com/tonistiigi/fsutil
+  version: 0ac4c11b053b9c5c7c47558f81f96c7100ce50fb
 - package: golang.org/x/crypto
-  version: 558b6879de74bc843225cde5686419267ff707ca 
+  version: 3fbbcd23f1cb824e69491a5930cfeff09b12f4d2
+  subpackages:
+  - ssh
+  - ssh/terminal
+- package: golang.org/x/net
+  version: 7dcfb8076726a3fdd9353b6b8a1f1b6be6811bd6
+  subpackages:
+  - context
+  - context/ctxhttp
+  - proxy
+- package: golang.org/x/sys
+  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
+  subpackages:
+  - unix
+  - windows
+- package: google.golang.org/grpc
+  version: v1.3.0
+  subpackages:
+  - benchmark
+  - benchmark/client
+  - benchmark/grpc_testing
+  - benchmark/server
+  - benchmark/stats
+  - codes
+  - credentials
+  - credentials/oauth
+  - examples/helloworld/greeter_client
+  - examples/helloworld/greeter_server
+  - examples/helloworld/helloworld
+  - examples/route_guide/client
+  - examples/route_guide/routeguide
+  - examples/route_guide/server
+  - grpclog
+  - grpclog/glogger
+  - health
+  - health/grpc_health_v1
+  - internal
+  - interop
+  - interop/client
+  - interop/grpc_testing
+  - interop/server
+  - metadata
+  - naming
+  - peer
+  - test/codec_perf
+  - test/grpc_testing
+  - transport
+- package: gopkg.in/urfave/cli.v2
+  version: 50a0fdeea6330854c7b05371cce1fac8c7e636d2
+testImports: []

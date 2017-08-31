@@ -8,7 +8,7 @@ import (
 	"text/template"
 
 	"github.com/docker/cli/cli"
-	"github.com/docker/docker/pkg/templates"
+	"github.com/docker/cli/templates"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

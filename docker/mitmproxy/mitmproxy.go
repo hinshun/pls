@@ -40,17 +40,17 @@ type MITMProxy struct {
 }
 
 func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMProxy, error) {
-	mitmProxyName := spec.Name
-	if mitmProxyName == "" {
+	proxyName := spec.Name
+	if proxyName == "" {
 		var err error
-		mitmProxyName, err = namegen.GetUnusedContainerName(ctx, cli, MITMProxyPrefix)
+		proxyName, err = namegen.GetUnusedContainerName(ctx, cli, MITMProxyPrefix)
 		if err != nil {
 			return nil, stacktrace.Propagate(err, "failed to generate mitmproxy container name")
 		}
 	}
 
-	logrus.Infof("Creating network '%s'", mitmProxyName)
-	networkResp, err := cli.NetworkCreate(ctx, mitmProxyName, types.NetworkCreate{
+	logrus.Infof("Creating network '%s'", proxyName)
+	networkResp, err := cli.NetworkCreate(ctx, proxyName, types.NetworkCreate{
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
 		},
@@ -59,9 +59,9 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy network")
 	}
 
-	logrus.Infof("Creating volume '%s'", mitmProxyName)
+	logrus.Infof("Creating volume '%s'", proxyName)
 	_, err = cli.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
-		Name: mitmProxyName,
+		Name: proxyName,
 		Labels: map[string]string{
 			"pls": MITMProxyPrefix,
 		},
@@ -84,15 +84,15 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		Mounts: []mount.Mount{
 			{
 				Type:   mount.TypeVolume,
-				Source: mitmProxyName,
+				Source: proxyName,
 				Target: MITMProxyDefaultCADirectory,
 			},
 		},
 	}
 	netCfg := &network.NetworkingConfig{}
 
-	logrus.Infof("Creating container '%s'", mitmProxyName)
-	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, mitmProxyName)
+	logrus.Infof("Creating container '%s'", proxyName)
+	createResp, err := cli.ContainerCreate(ctx, cfg, hostCfg, netCfg, proxyName)
 	if err != nil {
 		return nil, stacktrace.Propagate(err, "failed to create mitmproxy container")
 	}
@@ -108,7 +108,7 @@ func New(ctx context.Context, cli client.APIClient, spec MITMProxySpec) (*MITMPr
 		return nil, stacktrace.Propagate(err, "failed to start mitmproxy container")
 	}
 
-	return NewFromExisting(ctx, cli, mitmProxyName)
+	return NewFromExisting(ctx, cli, proxyName)
 }
 
 func NewFromExisting(ctx context.Context, cli client.APIClient, containerName string) (*MITMProxy, error) {

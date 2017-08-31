@@ -20,8 +20,10 @@ function teardown() {
 
 @test "mask paths [file]" {
 	# run busybox detached
-	runc run -d --console-socket $CONSOLE_SOCKET test_busybox
+	runc run -d --console /dev/pts/ptmx test_busybox
 	[ "$status" -eq 0 ]
+
+	wait_for_container 15 1 test_busybox
 
 	runc exec test_busybox cat /testfile
 	[ "$status" -eq 0 ]
@@ -38,8 +40,10 @@ function teardown() {
 
 @test "mask paths [directory]" {
 	# run busybox detached
-	runc run -d --console-socket $CONSOLE_SOCKET test_busybox
+	runc run -d --console /dev/pts/ptmx test_busybox
 	[ "$status" -eq 0 ]
+
+	wait_for_container 15 1 test_busybox
 
 	runc exec test_busybox ls /testdir
 	[ "$status" -eq 0 ]

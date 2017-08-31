@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/net/context"
 
-	"github.com/docker/notary"
 	"github.com/docker/notary/server/errors"
 	"github.com/docker/notary/server/snapshot"
 	"github.com/docker/notary/server/storage"
@@ -44,15 +43,15 @@ func AtomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 }
 
 func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.GUN(vars["gun"])
-	s := ctx.Value(notary.CtxKeyMetaStore)
+	gun := vars["imageName"]
+	s := ctx.Value("metaStore")
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 	store, ok := s.(storage.MetaStore)
 	if !ok {
 		logger.Error("500 POST unable to retrieve storage")
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
-	cryptoServiceVal := ctx.Value(notary.CtxKeyCryptoSvc)
+	cryptoServiceVal := ctx.Value("cryptoService")
 	cryptoService, ok := cryptoServiceVal.(signed.CryptoService)
 	if !ok {
 		logger.Error("500 POST unable to retrieve signing service")
@@ -70,8 +69,8 @@ func atomicUpdateHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 		if err == io.EOF {
 			break
 		}
-		role := data.RoleName(strings.TrimSuffix(part.FileName(), ".json"))
-		if role.String() == "" {
+		role := strings.TrimSuffix(part.FileName(), ".json")
+		if role == "" {
 			logger.Info("400 POST empty role")
 			return errors.ErrNoFilename.WithDetail(nil)
 		} else if !data.ValidRole(role) {
@@ -125,11 +124,10 @@ func GetHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) err
 }
 
 func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	gun := data.GUN(vars["gun"])
+	gun := vars["imageName"]
 	checksum := vars["checksum"]
-	version := vars["version"]
 	tufRole := vars["tufRole"]
-	s := ctx.Value(notary.CtxKeyMetaStore)
+	s := ctx.Value("metaStore")
 
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
 
@@ -139,7 +137,7 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 		return errors.ErrNoStorage.WithDetail(nil)
 	}
 
-	lastModified, output, err := getRole(ctx, store, gun, data.RoleName(tufRole), checksum, version)
+	lastModified, output, err := getRole(ctx, store, gun, tufRole, checksum)
 	if err != nil {
 		logger.Infof("404 GET %s role", tufRole)
 		return err
@@ -161,9 +159,9 @@ func getHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, var
 // DeleteHandler deletes all data for a GUN. A 200 responses indicates success.
 func DeleteHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 	vars := mux.Vars(r)
-	gun := data.GUN(vars["gun"])
+	gun := vars["imageName"]
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	s := ctx.Value(notary.CtxKeyMetaStore)
+	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok {
 		logger.Error("500 DELETE repository: no storage exists")
@@ -255,33 +253,33 @@ func rotateKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Reques
 }
 
 // To be called before getKeyHandler or rotateKeyHandler
-func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (data.RoleName, data.GUN, string, storage.MetaStore, signed.CryptoService, error) {
-	gun := data.GUN(vars["gun"])
+func setupKeyHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string, actionVerb string) (string, string, string, storage.MetaStore, signed.CryptoService, error) {
+	gun, ok := vars["imageName"]
 	logger := ctxu.GetLoggerWithField(ctx, gun, "gun")
-	if gun == "" {
+	if !ok || gun == "" {
 		logger.Infof("400 %s no gun in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no gun")
 	}
 
-	role := data.RoleName(vars["tufRole"])
-	if role == "" {
+	role, ok := vars["tufRole"]
+	if !ok || role == "" {
 		logger.Infof("400 %s no role in request", actionVerb)
 		return "", "", "", nil, nil, errors.ErrUnknown.WithDetail("no role")
 	}
 
-	s := ctx.Value(notary.CtxKeyMetaStore)
+	s := ctx.Value("metaStore")
 	store, ok := s.(storage.MetaStore)
 	if !ok || store == nil {
 		logger.Errorf("500 %s storage not configured", actionVerb)
 		return "", "", "", nil, nil, errors.ErrNoStorage.WithDetail(nil)
 	}
-	c := ctx.Value(notary.CtxKeyCryptoSvc)
+	c := ctx.Value("cryptoService")
 	crypto, ok := c.(signed.CryptoService)
 	if !ok || crypto == nil {
 		logger.Errorf("500 %s crypto service not configured", actionVerb)
 		return "", "", "", nil, nil, errors.ErrNoCryptoService.WithDetail(nil)
 	}
-	algo := ctx.Value(notary.CtxKeyKeyAlgo)
+	algo := ctx.Value("keyAlgorithm")
 	keyAlgo, ok := algo.(string)
 	if !ok || keyAlgo == "" {
 		logger.Errorf("500 %s key algorithm not configured", actionVerb)

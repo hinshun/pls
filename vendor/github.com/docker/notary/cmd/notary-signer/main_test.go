@@ -23,6 +23,7 @@ import (
 const (
 	Cert = "../../fixtures/notary-signer.crt"
 	Key  = "../../fixtures/notary-signer.key"
+	Root = "../../fixtures/root-ca.crt"
 )
 
 // initializes a viper object with test configuration
@@ -136,7 +137,7 @@ func TestSetupCryptoServicesRethinkDBStoreConnectionFails(t *testing.T) {
 			notary.RethinkDBBackend)),
 		[]string{notary.RethinkDBBackend}, false)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "no such host")
+	require.Contains(t, err.Error(), "no connections were made when creating the session")
 }
 
 // If a default alias *is* provided to a valid DB backend, a valid
@@ -237,8 +238,8 @@ func TestSetupGRPCServerSuccess(t *testing.T) {
 		TLSConfig:      &tlsConf,
 		CryptoServices: make(signer.CryptoServiceIndex),
 	})
-	require.NoError(t, err)
 	defer lis.Close()
+	require.NoError(t, err)
 	require.Equal(t, "[::]:7899", lis.Addr().String())
 	require.Equal(t, "tcp", lis.Addr().Network())
 	require.NotNil(t, grpcServer)

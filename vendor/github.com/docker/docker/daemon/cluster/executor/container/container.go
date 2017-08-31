@@ -25,7 +25,6 @@ import (
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -78,7 +77,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	c.task = t
 
 	if t.Spec.GetContainer() != nil {
-		preparedSpec, err := template.ExpandContainerSpec(nil, t)
+		preparedSpec, err := template.ExpandContainerSpec(t)
 		if err != nil {
 			return err
 		}
@@ -90,7 +89,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	return nil
 }
 
-func (c *containerConfig) networkAttachmentContainerID() string {
+func (c *containerConfig) id() string {
 	attachment := c.task.Spec.GetAttachment()
 	if attachment == nil {
 		return ""
@@ -116,7 +115,7 @@ func (c *containerConfig) nameOrID() string {
 		return c.name()
 	}
 
-	return c.networkAttachmentContainerID()
+	return c.id()
 }
 
 func (c *containerConfig) name() string {
@@ -187,16 +186,13 @@ func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 }
 
 func (c *containerConfig) config() *enginecontainer.Config {
-	genericEnvs := genericresource.EnvFormat(c.task.AssignedGenericResources, "DOCKER_RESOURCE")
-	env := append(c.spec().Env, genericEnvs...)
-
 	config := &enginecontainer.Config{
 		Labels:       c.labels(),
 		StopSignal:   c.spec().StopSignal,
 		Tty:          c.spec().TTY,
 		OpenStdin:    c.spec().OpenStdin,
 		User:         c.spec().User,
-		Env:          env,
+		Env:          c.spec().Env,
 		Hostname:     c.spec().Hostname,
 		WorkingDir:   c.spec().Dir,
 		Image:        c.image(),

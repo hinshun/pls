@@ -5,8 +5,10 @@ import (
 
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/dancannon/gorethink.v2"
 )
+
+var session *gorethink.Session
 
 // Timing can be embedded into other gorethink models to
 // add time tracking fields

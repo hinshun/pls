@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
-	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	networktypes "github.com/docker/libnetwork/types"
@@ -23,17 +22,15 @@ import (
 )
 
 type executor struct {
-	backend       executorpkg.Backend
-	pluginBackend plugin.Backend
-	dependencies  exec.DependencyManager
+	backend      executorpkg.Backend
+	dependencies exec.DependencyManager
 }
 
 // NewExecutor returns an executor from the docker client.
-func NewExecutor(b executorpkg.Backend, p plugin.Backend) exec.Executor {
+func NewExecutor(b executorpkg.Backend) exec.Executor {
 	return &executor{
-		backend:       b,
-		pluginBackend: p,
-		dependencies:  agent.NewDependencyManager(),
+		backend:      b,
+		dependencies: agent.NewDependencyManager(),
 	}
 }
 
@@ -120,7 +117,6 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		Resources: &api.Resources{
 			NanoCPUs:    int64(info.NCPU) * 1e9,
 			MemoryBytes: info.MemTotal,
-			Generic:     convert.GenericResourcesToGRPC(info.GenericResources),
 		},
 	}
 
@@ -185,7 +181,7 @@ func (e *executor) Controller(t *api.Task) (exec.Controller, error) {
 		}
 		switch runtimeKind {
 		case string(swarmtypes.RuntimePlugin):
-			c, err := plugin.NewController(e.pluginBackend, t)
+			c, err := plugin.NewController()
 			if err != nil {
 				return ctlr, err
 			}

@@ -19,7 +19,6 @@ The goal of this specification is to enable the creation of interoperable tools 
 - [Filesystem Layers](layer.md)
 - [Image Configuration](config.md)
 - [Annotations](annotations.md)
-- [Conversion](conversion.md)
 - [Considerations](considerations.md)
     - [Extensibility](considerations.md#extensibility)
     - [Canonicalization](considerations.md#canonicalization)
@@ -30,8 +29,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 The key words "unspecified", "undefined", and "implementation-defined" are to be interpreted as described in the [rationale for the C99 standard][c99-unspecified].
 
-An implementation is not compliant if it fails to satisfy one or more of the MUST, MUST NOT, REQUIRED, SHALL, or SHALL NOT requirements for the protocols it implements.
-An implementation is compliant if it satisfies all the MUST, MUST NOT, REQUIRED, SHALL, and SHALL NOT requirements for the protocols it implements.
+An implementation is not compliant if it fails to satisfy one or more of the MUST, REQUIRED, or SHALL requirements for the protocols it implements.
+An implementation is compliant if it satisfies all the MUST, REQUIRED, and SHALL requirements for the protocols it implements.
 
 ## Overview
 
@@ -57,13 +56,9 @@ The high-level components of the spec include:
 * [Image Layout](image-layout.md) - a filesystem layout representing the contents of an image
 * [Filesystem Layer](layer.md) - a changeset that describes a container's filesystem
 * [Image Configuration](config.md) - a document determining layer ordering and configuration of the image suitable for translation into a [runtime bundle][runtime-spec]
-* [Conversion](conversion.md) - a document describing how this translation should occur
 * [Descriptor](descriptor.md) - a reference that describes the type, metadata and content address of referenced content
-
-Future versions of this specification may include the following OPTIONAL features:
-
-* Signatures that are based on signing image content address
-* Naming that is federated based on DNS and can be delegated
+* Signatures that are based on signing image content address (optional OCI layer)
+* Naming that is federated based on DNS and can be delegated (optional OCI layer)
 
 [c99-unspecified]: http://www.open-std.org/jtc1/sc22/wg14/www/C99RationaleV5.10.pdf#page=18
 [runtime-spec]: https://github.com/opencontainers/runtime-spec

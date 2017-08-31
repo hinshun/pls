@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 	"unicode"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
-	"golang.org/x/sys/unix"
 )
 
 // #5979
@@ -421,7 +421,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
 
 	time.Sleep(3 * time.Second)
 
@@ -459,7 +459,7 @@ func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	}
 	c.Assert(daemonID, checker.Not(checker.Equals), "")
 
-	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
+	c.Assert(s.d.Signal(syscall.SIGHUP), checker.IsNil)
 
 	time.Sleep(3 * time.Second)
 

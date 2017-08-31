@@ -13,7 +13,6 @@ import (
 	bugsnag_hook "github.com/Shopify/logrus-bugsnag"
 	"github.com/bugsnag/bugsnag-go"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/go-sql-driver/mysql"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 
@@ -100,7 +99,7 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 	}
 
 	switch {
-	case store.Backend != notary.MySQLBackend && store.Backend != notary.SQLiteBackend && store.Backend != notary.PostgresBackend:
+	case store.Backend != notary.MySQLBackend && store.Backend != notary.SQLiteBackend:
 		return nil, fmt.Errorf(
 			"%s is not a supported SQL backend driver",
 			store.Backend,
@@ -110,16 +109,6 @@ func ParseSQLStorage(configuration *viper.Viper) (*Storage, error) {
 			"must provide a non-empty database source for %s",
 			store.Backend,
 		)
-	case store.Backend == notary.MySQLBackend:
-		urlConfig, err := mysql.ParseDSN(store.Source)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse the database source for %s",
-				store.Backend,
-			)
-		}
-
-		urlConfig.ParseTime = true
-		store.Source = urlConfig.FormatDSN()
 	}
 	return &store, nil
 }

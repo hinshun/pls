@@ -1,4 +1,4 @@
-// +build linux,arm linux,ppc64 linux,ppc64le
+// +build linux,arm linux,ppc64 linux,ppc64le s390x
 
 package platform
 

@@ -5,22 +5,20 @@ package libcontainer
 import (
 	"fmt"
 	"os"
+	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/keys"
+	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/opencontainers/runc/libcontainer/seccomp"
 	"github.com/opencontainers/runc/libcontainer/system"
-	"github.com/opencontainers/selinux/go-selinux/label"
-
-	"golang.org/x/sys/unix"
 )
 
 // linuxSetnsInit performs the container's initialization for running a new process
 // inside an existing container.
 type linuxSetnsInit struct {
-	pipe          *os.File
-	consoleSocket *os.File
-	config        *initConfig
+	config     *initConfig
+	stateDirFD int
 }
 
 func (l *linuxSetnsInit) getSessionRingName() string {
@@ -34,16 +32,8 @@ func (l *linuxSetnsInit) Init() error {
 			return err
 		}
 	}
-	if l.config.CreateConsole {
-		if err := setupConsole(l.consoleSocket, l.config, false); err != nil {
-			return err
-		}
-		if err := system.Setctty(); err != nil {
-			return err
-		}
-	}
 	if l.config.NoNewPrivileges {
-		if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
+		if err := system.Prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
 			return err
 		}
 	}
@@ -61,5 +51,8 @@ func (l *linuxSetnsInit) Init() error {
 	if err := label.SetProcessLabel(l.config.ProcessLabel); err != nil {
 		return err
 	}
+	// close the statedir fd before exec because the kernel resets dumpable in the wrong order
+	// https://github.com/torvalds/linux/blob/v4.9/fs/exec.c#L1290-L1318
+	syscall.Close(l.stateDirFD)
 	return system.Execv(l.config.Args[0], l.config.Args[0:], os.Environ())
 }

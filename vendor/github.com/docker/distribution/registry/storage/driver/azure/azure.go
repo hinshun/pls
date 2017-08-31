@@ -86,8 +86,7 @@ func New(accountName, accountKey, container, realm string) (*Driver, error) {
 	blobClient := api.GetBlobService()
 
 	// Create registry container
-	containerRef := blobClient.GetContainerReference(container)
-	if _, err = containerRef.CreateIfNotExists(); err != nil {
+	if _, err = blobClient.CreateContainerIfNotExists(container, azure.ContainerAccessTypePrivate); err != nil {
 		return nil, err
 	}
 
@@ -238,9 +237,7 @@ func (d *driver) Stat(ctx context.Context, path string) (storagedriver.FileInfo,
 	if !strings.HasSuffix(virtContainerPath, "/") {
 		virtContainerPath += "/"
 	}
-
-	containerRef := d.client.GetContainerReference(d.container)
-	blobs, err := containerRef.ListBlobs(azure.ListBlobsParameters{
+	blobs, err := d.client.ListBlobs(d.container, azure.ListBlobsParameters{
 		Prefix:     virtContainerPath,
 		MaxResults: 1,
 	})
@@ -377,9 +374,8 @@ func (d *driver) listBlobs(container, virtPath string) ([]string, error) {
 
 	out := []string{}
 	marker := ""
-	containerRef := d.client.GetContainerReference(d.container)
 	for {
-		resp, err := containerRef.ListBlobs(azure.ListBlobsParameters{
+		resp, err := d.client.ListBlobs(d.container, azure.ListBlobsParameters{
 			Marker: marker,
 			Prefix: virtPath,
 		})

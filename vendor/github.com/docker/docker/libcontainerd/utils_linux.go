@@ -5,7 +5,6 @@ import (
 
 	containerd "github.com/containerd/containerd/api/grpc/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"golang.org/x/sys/unix"
 )
 
 func getRootIDs(s specs.Spec) (int, int, error) {
@@ -58,6 +57,6 @@ func convertRlimits(sr []specs.LinuxRlimit) (cr []*containerd.Rlimit) {
 func setSysProcAttr(sid bool) *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		Setsid:    sid,
-		Pdeathsig: unix.SIGKILL,
+		Pdeathsig: syscall.SIGKILL,
 	}
 }

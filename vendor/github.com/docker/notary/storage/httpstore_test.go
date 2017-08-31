@@ -2,13 +2,11 @@ package storage
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -94,8 +92,8 @@ func TestHTTPStoreGetAllMeta(t *testing.T) {
 
 func TestSetSingleAndSetMultiMeta(t *testing.T) {
 	metas := map[string][]byte{
-		data.CanonicalRootRole.String():    []byte("root data"),
-		data.CanonicalTargetsRole.String(): []byte("targets data"),
+		"root":    []byte("root data"),
+		"targets": []byte("targets data"),
 	}
 
 	var updates map[string][]byte
@@ -240,31 +238,6 @@ func TestTranslateErrorsWhenCannotParse400(t *testing.T) {
 	}
 }
 
-// Cut off error reading after a certain size
-func TestTranslateErrorsLimitsErrorSize(t *testing.T) {
-	// if the error message itself is the max error size, then extra JSON surrounding it will put it over
-	// the top
-	msg := make([]byte, MaxErrorResponseSize)
-	for i := range msg {
-		msg[i] = 'a'
-	}
-
-	serialObj, err := validation.NewSerializableError(validation.ErrBadRoot{Msg: string(msg)})
-	require.NoError(t, err)
-	serialization, err := json.Marshal(serialObj)
-	require.NoError(t, err)
-	errorBody := bytes.NewBuffer([]byte(fmt.Sprintf(
-		`{"errors": [{"otherstuff": "what", "detail": %s}]}`,
-		string(serialization))))
-	errorResp := http.Response{
-		StatusCode: http.StatusBadRequest,
-		Body:       ioutil.NopCloser(errorBody),
-	}
-
-	err = translateStatusToError(&errorResp, "")
-	require.IsType(t, ErrInvalidOperation{}, err)
-}
-
 func TestHTTPStoreRemoveAll(t *testing.T) {
 	// Set up a simple handler and server for our store, just check that a non-error response back is fine
 	handler := func(w http.ResponseWriter, r *http.Request) {}
@@ -348,27 +321,6 @@ func TestHTTPStoreGetKey(t *testing.T) {
 	require.Equal(t, "FAIL", err.Error())
 }
 
-func TestHTTPStoreGetRotateKeySizeLimited(t *testing.T) {
-	tooLarge := make([]byte, MaxKeySize+10)
-	for i := range tooLarge {
-		tooLarge[i] = 'a'
-	}
-	handler := func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/metadata/snapshot.key", r.URL.Path)
-		w.Write(tooLarge)
-	}
-	server := httptest.NewServer(http.HandlerFunc(handler))
-	defer server.Close()
-	store, err := NewHTTPStore(server.URL, "metadata", "json", "key", http.DefaultTransport)
-	require.NoError(t, err)
-
-	for _, downloadFunc := range []func(data.RoleName) ([]byte, error){store.RotateKey, store.GetKey} {
-		gotten, err := downloadFunc(data.CanonicalSnapshotRole)
-		require.NoError(t, err)
-		require.Equal(t, tooLarge[:MaxKeySize], gotten)
-	}
-}
-
 func TestHTTPOffline(t *testing.T) {
 	s, err := NewHTTPStore("https://localhost/", "", "", "", nil)
 	require.NoError(t, err)
@@ -384,28 +336,4 @@ func TestErrServerUnavailable(t *testing.T) {
 			require.Contains(t, err.Error(), "unable to reach trust server")
 		}
 	}
-}
-
-func TestNetworkError(t *testing.T) {
-	err := &url.Error{
-		Op:  http.MethodGet,
-		URL: "https://auth.docker.io",
-		Err: errors.New("abc%3Adef%3Aghi"),
-	}
-	networkErr := NetworkError{Wrapped: err}
-	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc:def:ghi", networkErr.Error())
-
-	// expect QueryUnescape error because the last '%' is not
-	// followed by two hexadecimal digits
-	err2 := &url.Error{
-		Op:  http.MethodGet,
-		URL: "https://auth.docker.io",
-		Err: errors.New("abc%3Adef%GAghi"),
-	}
-	networkErr2 := NetworkError{Wrapped: err2}
-	require.Equal(t, http.MethodGet+" https://auth.docker.io: abc%3Adef%GAghi", networkErr2.Error())
-
-	err3 := errors.New("CPU usage 90%3A")
-	networkErr3 := NetworkError{Wrapped: err3}
-	require.Equal(t, err3.Error(), networkErr3.Error())
 }

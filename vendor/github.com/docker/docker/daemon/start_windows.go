@@ -150,11 +150,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	var networkSharedContainerID string
 	if container.HostConfig.NetworkMode.IsContainer() {
 		networkSharedContainerID = container.NetworkSharedContainerID
-		for _, ep := range container.SharedEndpointList {
-			epList = append(epList, ep)
-		}
 	}
-
 	createOptions = append(createOptions, &libcontainerd.NetworkEndpointsOption{
 		Endpoints:                epList,
 		AllowUnqualifiedDNSQuery: AllowUnqualifiedDNSQuery,

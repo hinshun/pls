@@ -162,7 +162,7 @@ func TestParseBugsnagWithEnvironmentVariables(t *testing.T) {
 // If the storage backend is invalid or not provided, an error is returned.
 func TestParseInvalidStorageBackend(t *testing.T) {
 	invalids := []string{
-		`{"storage": {"backend": "etcd", "db_url": "1234"}}`,
+		`{"storage": {"backend": "postgres", "db_url": "1234"}}`,
 		`{"storage": {"db_url": "12345"}}`,
 		`{"storage": {}}`,
 		`{}`,
@@ -181,7 +181,7 @@ func TestParseInvalidSQLStorageNoDBSource(t *testing.T) {
 		`{"storage": {"backend": "%s"}}`,
 		`{"storage": {"backend": "%s", "db_url": ""}}`,
 	}
-	for _, backend := range []string{notary.MySQLBackend, notary.SQLiteBackend, notary.PostgresBackend} {
+	for _, backend := range []string{notary.MySQLBackend, notary.SQLiteBackend} {
 		for _, configJSONFmt := range invalids {
 			configJSON := fmt.Sprintf(configJSONFmt, backend)
 			_, err := ParseSQLStorage(configure(configJSON))
@@ -190,20 +190,6 @@ func TestParseInvalidSQLStorageNoDBSource(t *testing.T) {
 				fmt.Sprintf("must provide a non-empty database source for %s", backend))
 		}
 	}
-}
-
-// If an invalid DB source is provided, an error is returned.
-func TestParseInvalidDBSourceInSQLStorage(t *testing.T) {
-	config := configure(`{
-		"storage": {
-			"backend": "mysql",
-			"db_url": "foobar"
-		}
-	}`)
-	_, err := ParseSQLStorage(config)
-	require.Error(t, err)
-	require.Contains(t, err.Error(),
-		fmt.Sprintf("failed to parse the database source for mysql"))
 }
 
 // A supported backend with DB source will be successfully parsed.
@@ -217,7 +203,7 @@ func TestParseSQLStorageDBStore(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
+		Source:  "username:passord@tcp(hostname:1234)/dbname",
 	}
 
 	store, err := ParseSQLStorage(config)
@@ -347,7 +333,7 @@ func TestParseSQLStorageWithEnvironmentVariables(t *testing.T) {
 
 	expected := Storage{
 		Backend: "mysql",
-		Source:  "username:passord@tcp(hostname:1234)/dbname?parseTime=true",
+		Source:  "username:passord@tcp(hostname:1234)/dbname",
 	}
 
 	store, err := ParseSQLStorage(config)

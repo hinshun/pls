@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/namesgenerator"
+	"github.com/docker/docker/pkg/registrar"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
@@ -30,7 +31,7 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 		}
 		container.Name = name
 	}
-	return daemon.containersReplica.ReserveName(container.Name, container.ID)
+	return daemon.nameIndex.Reserve(container.Name, container.ID)
 }
 
 func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
@@ -61,9 +62,9 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 		name = "/" + name
 	}
 
-	if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-		if err == container.ErrNameReserved {
-			id, err := daemon.containersReplica.Snapshot().GetID(name)
+	if err := daemon.nameIndex.Reserve(name, id); err != nil {
+		if err == registrar.ErrNameReserved {
+			id, err := daemon.nameIndex.Get(name)
 			if err != nil {
 				logrus.Errorf("got unexpected error while looking up reserved name: %v", err)
 				return "", err
@@ -76,7 +77,7 @@ func (daemon *Daemon) reserveName(id, name string) (string, error) {
 }
 
 func (daemon *Daemon) releaseName(name string) {
-	daemon.containersReplica.ReleaseName(name)
+	daemon.nameIndex.Release(name)
 }
 
 func (daemon *Daemon) generateNewName(id string) (string, error) {
@@ -87,8 +88,8 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 			name = "/" + name
 		}
 
-		if err := daemon.containersReplica.ReserveName(name, id); err != nil {
-			if err == container.ErrNameReserved {
+		if err := daemon.nameIndex.Reserve(name, id); err != nil {
+			if err == registrar.ErrNameReserved {
 				continue
 			}
 			return "", err
@@ -97,7 +98,7 @@ func (daemon *Daemon) generateNewName(id string) (string, error) {
 	}
 
 	name = "/" + stringid.TruncateID(id)
-	if err := daemon.containersReplica.ReserveName(name, id); err != nil {
+	if err := daemon.nameIndex.Reserve(name, id); err != nil {
 		return "", err
 	}
 	return name, nil

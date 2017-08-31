@@ -60,7 +60,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	}
 
 	parent = strings.TrimSuffix(parent, "/")
-	pe, err := daemon.containersReplica.Snapshot().GetID(parent)
+	pe, err := daemon.nameIndex.Get(parent)
 	if err != nil {
 		return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
 	}
@@ -119,7 +119,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	if container.RWLayer != nil {
 		metadata, err := daemon.stores[container.Platform].layerStore.ReleaseRWLayer(container.RWLayer)
 		layer.LogReleaseMetadata(metadata)
-		if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
+		if err != nil && err != layer.ErrMountDoesNotExist {
 			return errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(container.Platform), container.ID)
 		}
 	}
@@ -128,6 +128,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		return errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
 	}
 
+	daemon.nameIndex.Delete(container.ID)
 	daemon.linkIndex.delete(container)
 	selinuxFreeLxcContexts(container.ProcessLabel)
 	daemon.idIndex.Delete(container.ID)

@@ -168,11 +168,6 @@ type CommonConfig struct {
 	ValuesSet map[string]interface{}
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
-
-	// Exposed node Generic Resources
-	NodeGenericResources string `json:"node-generic-resources,omitempty"`
-	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
-	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -500,10 +495,6 @@ func Validate(config *Config) error {
 		if _, ok := runtimes[StockRuntimeName]; ok {
 			return fmt.Errorf("runtime name '%s' is reserved", StockRuntimeName)
 		}
-	}
-
-	if _, err := opts.ParseGenericResources(config.NodeGenericResources); err != nil {
-		return err
 	}
 
 	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" && defaultRuntime != StockRuntimeName {

@@ -12,7 +12,7 @@ import (
 	"github.com/docker/notary/storage/rethinkdb"
 	"github.com/docker/notary/tuf/data"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/dancannon/gorethink.v3"
+	"gopkg.in/dancannon/gorethink.v2"
 )
 
 var tlsOpts = tlsconfig.Options{InsecureSkipVerify: true}
@@ -128,13 +128,6 @@ func TestRethinkUpdateCurrentVersionCheckOldVersionNotExist(t *testing.T) {
 	defer cleanup()
 
 	testUpdateCurrentVersionCheck(t, dbStore, false)
-}
-
-func TestRethinkGetVersion(t *testing.T) {
-	dbStore, cleanup := rethinkDBSetup(t)
-	defer cleanup()
-
-	testGetVersion(t, dbStore)
 }
 
 // UpdateMany succeeds if the updates do not conflict with each other or with what's

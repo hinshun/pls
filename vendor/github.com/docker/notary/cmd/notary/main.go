@@ -236,21 +236,21 @@ func getPassphraseRetriever() notary.PassRetriever {
 		// Note that we don't check if the role name is for a delegation to allow for names like "user"
 		// since delegation keys can be shared across repositories
 		// This cannot be a base role or imported key, though.
-		if v := env["delegation"]; !data.IsBaseRole(data.RoleName(alias)) && v != "" {
+		if v := env["delegation"]; !data.IsBaseRole(alias) && v != "" {
 			return v, numAttempts > 1, nil
 		}
 		return baseRetriever(keyName, alias, createNew, numAttempts)
 	}
 }
 
-// Set the logging level to warn on default, or the most verbose level the user specified (debug, info)
+// Set the logging level to fatal on default, or the most specific level the user specified (debug or error)
 func (n *notaryCommander) setVerbosityLevel() {
 	if n.debug {
 		logrus.SetLevel(logrus.DebugLevel)
 	} else if n.verbose {
-		logrus.SetLevel(logrus.InfoLevel)
+		logrus.SetLevel(logrus.ErrorLevel)
 	} else {
-		logrus.SetLevel(logrus.WarnLevel)
+		logrus.SetLevel(logrus.FatalLevel)
 	}
 	logrus.SetOutput(os.Stderr)
 }

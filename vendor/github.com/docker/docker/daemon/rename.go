@@ -32,15 +32,15 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		return err
 	}
 
-	container.Lock()
-	defer container.Unlock()
-
 	oldName = container.Name
 	oldIsAnonymousEndpoint := container.NetworkSettings.IsAnonymousEndpoint
 
 	if oldName == newName {
 		return errors.New("Renaming a container with the same name as its current name")
 	}
+
+	container.Lock()
+	defer container.Unlock()
 
 	links := map[string]*dockercontainer.Container{}
 	for k, v := range daemon.linkIndex.children(container) {
@@ -55,7 +55,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 	}
 
 	for k, v := range links {
-		daemon.containersReplica.ReserveName(newName+k, v.ID)
+		daemon.nameIndex.Reserve(newName+k, v.ID)
 		daemon.linkIndex.link(container, v, newName+k)
 	}
 
@@ -68,10 +68,10 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 			container.NetworkSettings.IsAnonymousEndpoint = oldIsAnonymousEndpoint
 			daemon.reserveName(container.ID, oldName)
 			for k, v := range links {
-				daemon.containersReplica.ReserveName(oldName+k, v.ID)
+				daemon.nameIndex.Reserve(oldName+k, v.ID)
 				daemon.linkIndex.link(container, v, oldName+k)
 				daemon.linkIndex.unlink(newName+k, v, container)
-				daemon.containersReplica.ReleaseName(newName + k)
+				daemon.nameIndex.Release(newName + k)
 			}
 			daemon.releaseName(newName)
 		}
@@ -79,7 +79,7 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 
 	for k, v := range links {
 		daemon.linkIndex.unlink(oldName+k, v, container)
-		daemon.containersReplica.ReleaseName(oldName + k)
+		daemon.nameIndex.Release(oldName + k)
 	}
 	daemon.releaseName(oldName)
 	if err = container.CheckpointTo(daemon.containersReplica); err != nil {

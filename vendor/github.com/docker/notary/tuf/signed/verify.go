@@ -8,14 +8,16 @@ import (
 
 	"github.com/docker/go/canonical/json"
 	"github.com/docker/notary/tuf/data"
-	"github.com/docker/notary/tuf/utils"
 	"github.com/sirupsen/logrus"
 )
 
 // Various basic signing errors
 var (
+	ErrMissingKey   = errors.New("tuf: missing key")
 	ErrNoSignatures = errors.New("tuf: data has no signatures")
 	ErrInvalid      = errors.New("tuf: signature verification failed")
+	ErrWrongMethod  = errors.New("tuf: invalid signature type")
+	ErrUnknownRole  = errors.New("tuf: unknown role")
 	ErrWrongType    = errors.New("tuf: meta file has wrong type")
 )
 
@@ -25,7 +27,7 @@ func IsExpired(t time.Time) bool {
 }
 
 // VerifyExpiry returns ErrExpired if the metadata is expired
-func VerifyExpiry(s *data.SignedCommon, role data.RoleName) error {
+func VerifyExpiry(s *data.SignedCommon, role string) error {
 	if IsExpired(s.Expires) {
 		logrus.Errorf("Metadata for %s expired", role)
 		return ErrExpired{Role: role, Expired: s.Expires.Format("Mon Jan 2 15:04:05 MST 2006")}
@@ -99,25 +101,12 @@ func VerifySignature(msg []byte, sig *data.Signature, pk data.PublicKey) error {
 	method := sig.Method
 	verifier, ok := Verifiers[method]
 	if !ok {
-		return fmt.Errorf("signing method is not supported: %s", sig.Method)
+		return fmt.Errorf("signing method is not supported: %s\n", sig.Method)
 	}
 
 	if err := verifier.Verify(pk, sig.Signature, msg); err != nil {
-		return fmt.Errorf("signature was invalid")
+		return fmt.Errorf("signature was invalid\n")
 	}
 	sig.IsValid = true
-	return nil
-}
-
-// VerifyPublicKeyMatchesPrivateKey checks if the private key and the public keys forms valid key pairs.
-// Supports both x509 certificate PublicKeys and non-certificate PublicKeys
-func VerifyPublicKeyMatchesPrivateKey(privKey data.PrivateKey, pubKey data.PublicKey) error {
-	pubKeyID, err := utils.CanonicalKeyID(pubKey)
-	if err != nil {
-		return fmt.Errorf("could not verify key pair: %v", err)
-	}
-	if privKey == nil || pubKeyID != privKey.ID() {
-		return fmt.Errorf("private key is nil or does not match public key")
-	}
 	return nil
 }

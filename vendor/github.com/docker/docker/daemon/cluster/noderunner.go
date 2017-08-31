@@ -118,7 +118,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		JoinAddr:           joinAddr,
 		StateDir:           n.cluster.root,
 		JoinToken:          conf.joinToken,
-		Executor:           container.NewExecutor(n.cluster.config.Backend, n.cluster.config.PluginBackend),
+		Executor:           container.NewExecutor(n.cluster.config.Backend),
 		HeartbeatTick:      1,
 		ElectionTick:       3,
 		UnlockKey:          conf.lockKey,
@@ -200,10 +200,6 @@ func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientCo
 			},
 			{
 				Kind:   "secret",
-				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
-			},
-			{
-				Kind:   "config",
 				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
 			},
 		},

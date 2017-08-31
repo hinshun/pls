@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
-	"golang.org/x/sys/unix"
 )
 
 // fixVolumePathPrefix does platform specific processing to ensure that if
@@ -48,8 +47,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 
 	if ok {
 		// Currently go does not fill in the major/minors
-		if s.Mode&unix.S_IFBLK != 0 ||
-			s.Mode&unix.S_IFCHR != 0 {
+		if s.Mode&syscall.S_IFBLK != 0 ||
+			s.Mode&syscall.S_IFCHR != 0 {
 			hdr.Devmajor = int64(major(uint64(s.Rdev)))
 			hdr.Devminor = int64(minor(uint64(s.Rdev)))
 		}
@@ -96,11 +95,11 @@ func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 	mode := uint32(hdr.Mode & 07777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:
-		mode |= unix.S_IFBLK
+		mode |= syscall.S_IFBLK
 	case tar.TypeChar:
-		mode |= unix.S_IFCHR
+		mode |= syscall.S_IFCHR
 	case tar.TypeFifo:
-		mode |= unix.S_IFIFO
+		mode |= syscall.S_IFIFO
 	}
 
 	return system.Mknod(path, mode, int(system.Mkdev(hdr.Devmajor, hdr.Devminor)))

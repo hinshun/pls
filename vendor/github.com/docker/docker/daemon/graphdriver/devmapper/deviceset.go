@@ -16,7 +16,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
@@ -26,20 +29,23 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	units "github.com/docker/go-units"
-	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
+
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 var (
-	defaultDataLoopbackSize      int64  = 100 * 1024 * 1024 * 1024
-	defaultMetaDataLoopbackSize  int64  = 2 * 1024 * 1024 * 1024
-	defaultBaseFsSize            uint64 = 10 * 1024 * 1024 * 1024
-	defaultThinpBlockSize        uint32 = 128 // 64K = 128 512b sectors
-	defaultUdevSyncOverride             = false
-	maxDeviceID                         = 0xffffff // 24 bit, pool limit
-	deviceIDMapSz                       = (maxDeviceID + 1) / 8
+	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
+	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
+	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
+	defaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
+	defaultUdevSyncOverride            = false
+	maxDeviceID                        = 0xffffff // 24 bit, pool limit
+	deviceIDMapSz                      = (maxDeviceID + 1) / 8
+	// We retry device removal so many a times that even error messages
+	// will fill up console during normal operation. So only log Fatal
+	// messages by default.
+	logLevel                            = devicemapper.LogLevelFatal
 	driverDeferredRemovalSupport        = false
 	enableDeferredRemoval               = false
 	enableDeferredDeletion              = false
@@ -1191,7 +1197,7 @@ func (devices *DeviceSet) growFS(info *devInfo) error {
 		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), fsMountPoint, err)
 	}
 
-	defer unix.Unmount(fsMountPoint, unix.MNT_DETACH)
+	defer syscall.Unmount(fsMountPoint, syscall.MNT_DETACH)
 
 	switch devices.BaseDeviceFilesystem {
 	case "ext4":
@@ -1260,10 +1266,30 @@ func setCloseOnExec(name string) {
 			if link == name {
 				fd, err := strconv.Atoi(i.Name())
 				if err == nil {
-					unix.CloseOnExec(fd)
+					syscall.CloseOnExec(fd)
 				}
 			}
 		}
+	}
+}
+
+// DMLog implements logging using DevMapperLogger interface.
+func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
+	// By default libdm sends us all the messages including debug ones.
+	// We need to filter out messages here and figure out which one
+	// should be printed.
+	if level > logLevel {
+		return
+	}
+
+	// FIXME(vbatts) push this back into ./pkg/devicemapper/
+	if level <= devicemapper.LogLevelErr {
+		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else if level <= devicemapper.LogLevelInfo {
+		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
+	} else {
+		// FIXME(vbatts) push this back into ./pkg/devicemapper/
+		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 	}
 }
 
@@ -1479,9 +1505,12 @@ func (devices *DeviceSet) closeTransaction() error {
 }
 
 func determineDriverCapabilities(version string) error {
-	// Kernel driver version >= 4.27.0 support deferred removal
+	/*
+	 * Driver version 4.27.0 and greater support deferred activation
+	 * feature.
+	 */
 
-	logrus.Debugf("devicemapper: kernel dm driver version is %s", version)
+	logrus.Debugf("devicemapper: driver version is %s", version)
 
 	versionSplit := strings.Split(version, ".")
 	major, err := strconv.Atoi(versionSplit[0])
@@ -1517,13 +1546,12 @@ func determineDriverCapabilities(version string) error {
 
 // Determine the major and minor number of loopback device
 func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
-	var stat unix.Stat_t
-	err := unix.Stat(file.Name(), &stat)
+	stat, err := file.Stat()
 	if err != nil {
 		return 0, 0, err
 	}
 
-	dev := stat.Rdev
+	dev := stat.Sys().(*syscall.Stat_t).Rdev
 	majorNum := major(dev)
 	minorNum := minor(dev)
 
@@ -1662,6 +1690,9 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 }
 
 func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
+	// give ourselves to libdm as a log handler
+	devicemapper.LogInit(devices)
+
 	if err := devices.enableDeferredRemovalDeletion(); err != nil {
 		return err
 	}
@@ -1722,17 +1753,18 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	}
 
 	// Set the device prefix from the device id and inode of the docker root dir
-	var st unix.Stat_t
-	if err := unix.Stat(devices.root, &st); err != nil {
+	st, err := os.Stat(devices.root)
+	if err != nil {
 		return fmt.Errorf("devmapper: Error looking up dir %s: %s", devices.root, err)
 	}
+	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	// docker-maj,min[-inode] stands for:
 	//	- Managed by docker
 	//	- The target of this device is at major <maj> and minor <min>
 	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
-	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(st.Dev), minor(st.Dev), st.Ino)
+	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(sysSt.Dev), minor(sysSt.Dev), sysSt.Ino)
 	logrus.Debugf("devmapper: Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the thin-pool device
@@ -2056,16 +2088,7 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	}
 
 	// Try to deactivate device in case it is active.
-	// If deferred removal is enabled and deferred deletion is disabled
-	// then make sure device is removed synchronously. There have been
-	// some cases of device being busy for short duration and we would
-	// rather busy wait for device removal to take care of these cases.
-	deferredRemove := devices.deferredRemove
-	if !devices.deferredDelete {
-		deferredRemove = false
-	}
-
-	if err := devices.deactivateDeviceMode(info, deferredRemove); err != nil {
+	if err := devices.deactivateDevice(info); err != nil {
 		logrus.Debugf("devmapper: Error deactivating device: %s", err)
 		return err
 	}
@@ -2122,11 +2145,6 @@ func (devices *DeviceSet) deactivatePool() error {
 }
 
 func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
-	return devices.deactivateDeviceMode(info, devices.deferredRemove)
-}
-
-func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove bool) error {
-	var err error
 	logrus.Debugf("devmapper: deactivateDevice START(%s)", info.Hash)
 	defer logrus.Debugf("devmapper: deactivateDevice END(%s)", info.Hash)
 
@@ -2139,17 +2157,14 @@ func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove boo
 		return nil
 	}
 
-	if deferredRemove {
-		err = devicemapper.RemoveDeviceDeferred(info.Name())
+	if devices.deferredRemove {
+		if err := devicemapper.RemoveDeviceDeferred(info.Name()); err != nil {
+			return err
+		}
 	} else {
-		err = devices.removeDevice(info.Name())
-	}
-
-	// This function's semantics is such that it does not return an
-	// error if device does not exist. So if device went away by
-	// the time we actually tried to remove it, do not return error.
-	if err != devicemapper.ErrEnxio {
-		return err
+		if err := devices.removeDevice(info.Name()); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -2272,7 +2287,7 @@ func (devices *DeviceSet) Shutdown(home string) error {
 			// We use MNT_DETACH here in case it is still busy in some running
 			// container. This means it'll go away from the global scope directly,
 			// and the device will be released when that container dies.
-			if err := unix.Unmount(p, unix.MNT_DETACH); err != nil {
+			if err := syscall.Unmount(p, syscall.MNT_DETACH); err != nil {
 				logrus.Debugf("devmapper: Shutdown unmounting %s, error: %s", p, err)
 			}
 		}
@@ -2385,7 +2400,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
-			unix.Unmount(path, unix.MNT_DETACH)
+			syscall.Unmount(path, syscall.MNT_DETACH)
 			devices.deactivateDevice(info)
 			return err
 		}
@@ -2411,7 +2426,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	defer devices.Unlock()
 
 	logrus.Debugf("devmapper: Unmount(%s)", mountPath)
-	if err := unix.Unmount(mountPath, unix.MNT_DETACH); err != nil {
+	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
 		return err
 	}
 	logrus.Debug("devmapper: Unmount done")
@@ -2508,8 +2523,8 @@ func (devices *DeviceSet) MetadataDevicePath() string {
 }
 
 func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
-	buf := new(unix.Statfs_t)
-	if err := unix.Statfs(loopFile, buf); err != nil {
+	buf := new(syscall.Statfs_t)
+	if err := syscall.Statfs(loopFile, buf); err != nil {
 		logrus.Warnf("devmapper: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
 		return 0, err
 	}
@@ -2773,18 +2788,6 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 				return nil, errors.New("dm.thinp_autoextend_threshold must be greater than 0 and less than 100")
 			}
 			lvmSetupConfig.AutoExtendThreshold = per
-		case "dm.libdm_log_level":
-			level, err := strconv.ParseInt(val, 10, 32)
-			if err != nil {
-				return nil, errors.Wrapf(err, "could not parse `dm.libdm_log_level=%s`", val)
-			}
-			if level < devicemapper.LogLevelFatal || level > devicemapper.LogLevelDebug {
-				return nil, errors.Errorf("dm.libdm_log_level must be in range [%d,%d]", devicemapper.LogLevelFatal, devicemapper.LogLevelDebug)
-			}
-			// Register a new logging callback with the specified level.
-			devicemapper.LogInit(devicemapper.DefaultLogger{
-				Level: int(level),
-			})
 		default:
 			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
 		}

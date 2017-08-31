@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/sys/unix"
 )
 
 func verifyFile(t testing.TB, path string, mode os.FileMode, uid, gid uint32) {
@@ -34,8 +33,8 @@ func verifyFile(t testing.TB, path string, mode os.FileMode, uid, gid uint32) {
 
 func createBase(t testing.TB, driver graphdriver.Driver, name string) {
 	// We need to be able to set any perms
-	oldmask := unix.Umask(0)
-	defer unix.Umask(oldmask)
+	oldmask := syscall.Umask(0)
+	defer syscall.Umask(oldmask)
 
 	err := driver.CreateReadWrite(name, "", nil)
 	require.NoError(t, err)

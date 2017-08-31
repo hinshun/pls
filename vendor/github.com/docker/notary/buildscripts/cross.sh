@@ -40,7 +40,7 @@ for os in "$@"; do
 	go build \
 		-o "${NOTARYDIR}/cross/${GOOS}/${GOARCH}/${OUTFILE}" \
 		-a \
-		-tags "${BUILDTAGS} netgo" \
+		-tags "${BUILDTAGS}" \
 		-ldflags "-w ${CTIMEVAR} ${LDFLAGS}"  \
 		./cmd/notary;
 	set +x;

@@ -17,13 +17,13 @@ import (
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/client/session"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -140,7 +140,8 @@ func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func
 	}()
 	if options.RemoteContext == remotecontext.ClientSessionRemote {
 		st := time.Now()
-		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg, options.SessionID)
+		csi, err := NewClientSessionSourceIdentifier(ctx, bm.sg,
+			options.SessionID, []string{"/"})
 		if err != nil {
 			return nil, err
 		}

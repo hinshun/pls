@@ -116,9 +116,9 @@ func (m *mux) Wait() error {
 func newMux(p packetConn) *mux {
 	m := &mux{
 		conn:             p,
-		incomingChannels: make(chan NewChannel, chanSize),
+		incomingChannels: make(chan NewChannel, 16),
 		globalResponses:  make(chan interface{}, 1),
-		incomingRequests: make(chan *Request, chanSize),
+		incomingRequests: make(chan *Request, 16),
 		errCond:          newCond(),
 	}
 	if debugMux {
@@ -131,9 +131,6 @@ func newMux(p packetConn) *mux {
 
 func (m *mux) sendMessage(msg interface{}) error {
 	p := Marshal(msg)
-	if debugMux {
-		log.Printf("send global(%d): %#v", m.chanList.offset, msg)
-	}
 	return m.conn.writePacket(p)
 }
 
@@ -227,6 +224,9 @@ func (m *mux) onePacket() error {
 	}
 
 	switch packet[0] {
+	case msgNewKeys:
+		// Ignore notification of key change.
+		return nil
 	case msgChannelOpen:
 		return m.handleChannelOpen(packet)
 	case msgGlobalRequest, msgRequestSuccess, msgRequestFailure:

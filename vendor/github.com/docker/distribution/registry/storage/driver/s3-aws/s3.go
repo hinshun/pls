@@ -98,7 +98,6 @@ type DriverParameters struct {
 	StorageClass                string
 	UserAgent                   string
 	ObjectACL                   string
-	SessionToken                string
 }
 
 func init() {
@@ -332,8 +331,6 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		objectACL = objectACLString
 	}
 
-	sessionToken := ""
-
 	params := DriverParameters{
 		fmt.Sprint(accessKey),
 		fmt.Sprint(secretKey),
@@ -352,7 +349,6 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		storageClass,
 		fmt.Sprint(userAgent),
 		objectACL,
-		fmt.Sprint(sessionToken),
 	}
 
 	return New(params)
@@ -402,7 +398,6 @@ func New(params DriverParameters) (*Driver, error) {
 			Value: credentials.Value{
 				AccessKeyID:     params.AccessKey,
 				SecretAccessKey: params.SecretKey,
-				SessionToken:    params.SessionToken,
 			},
 		},
 		&credentials.EnvProvider{},
@@ -706,11 +701,15 @@ func (d *driver) copy(ctx context.Context, sourcePath string, destPath string) e
 		return nil
 	}
 
+	// Even in the worst case, a multipart copy should take no more
+	// than a few minutes, so 30 minutes is very conservative.
+	expires := time.Now().Add(time.Duration(30) * time.Minute)
 	createResp, err := d.S3.CreateMultipartUpload(&s3.CreateMultipartUploadInput{
 		Bucket:               aws.String(d.Bucket),
 		Key:                  aws.String(d.s3Path(destPath)),
 		ContentType:          d.getContentType(),
 		ACL:                  d.getACL(),
+		Expires:              aws.Time(expires),
 		SSEKMSKeyId:          d.getSSEKMSKeyID(),
 		ServerSideEncryption: d.getEncryptionMode(),
 		StorageClass:         d.getStorageClass(),

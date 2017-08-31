@@ -137,13 +137,10 @@ type ChildConfig struct {
 // NewChildImage creates a new Image as a child of this image.
 func NewChildImage(img *Image, child ChildConfig, platform string) *Image {
 	isEmptyLayer := layer.IsEmpty(child.DiffID)
-	var rootFS *RootFS
-	if img.RootFS != nil {
-		rootFS = img.RootFS.Clone()
-	} else {
+	rootFS := img.RootFS
+	if rootFS == nil {
 		rootFS = NewRootFS()
 	}
-
 	if !isEmptyLayer {
 		rootFS.Append(child.DiffID)
 	}

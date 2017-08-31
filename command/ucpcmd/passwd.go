@@ -2,8 +2,8 @@ package ucpcmd
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strings"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	authContainer    = "ucp-auth-api"
-	sshPasswdCommand = "docker exec -it ucp-auth-api enzi \"$(docker inspect --format '{{ index .Args 0 }}' ucp-auth-api)\" passwd -i"
+	authContainer       = "ucp-auth-api"
+	sshPasswdCommand    = "docker exec -it ucp-auth-api enzi \"$(docker inspect --format '{{ index .Args 0 }}' ucp-auth-api)\" passwd -i"
+	rethinkdbClientPort = "12383"
 )
 
 func Passwd(c *cli.Context) error {
@@ -35,27 +36,17 @@ func Passwd(c *cli.Context) error {
 			return stacktrace.Propagate(err, "failed to create docker client from env")
 		}
 
-		containerJSON, err := cli.ContainerInspect(ctx, authContainer)
+		info, err := cli.Info(ctx)
 		if err != nil {
-			return stacktrace.Propagate(err, "failed to inspect container '%s'", authContainer)
+			return stacktrace.Propagate(err, "failed to get docker info")
 		}
 
-		var dbAddrArg string
-		for _, arg := range containerJSON.Args {
-			if strings.HasPrefix(arg, "--db-addr=") {
-				dbAddrArg = arg
-				break
-			}
-		}
-		if dbAddrArg == "" {
-			return stacktrace.NewError("failed to find `--db-addr` arg in container '%s'", authContainer)
-		}
-
+		nodeAddr := info.Swarm.NodeAddr
 		execCfg := types.ExecConfig{
 			Tty:          true,
 			AttachStdin:  true,
 			AttachStdout: true,
-			Cmd:          []string{"enzi", dbAddrArg, "passwd", "-i"},
+			Cmd:          []string{"enzi", fmt.Sprintf("--db-addr=%s:%s", nodeAddr, rethinkdbClientPort), "passwd", "-i"},
 		}
 
 		execResp, err := cli.ContainerExecCreate(ctx, authContainer, execCfg)

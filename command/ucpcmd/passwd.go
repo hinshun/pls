@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"syscall"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/terminal"
@@ -23,7 +24,7 @@ import (
 
 const (
 	authContainer       = "ucp-auth-api"
-	sshPasswdCommand    = "docker exec -it ucp-auth-api enzi \"$(docker inspect --format '{{ index .Args 0 }}' ucp-auth-api)\" passwd -i"
+	sshPasswdCommand    = "docker exec -it ucp-auth-api enzi --db-addr=\"$(docker info --format '{{ .Swarm.NodeAddr }}'):12383\" passwd -i"
 	rethinkdbClientPort = "12383"
 )
 
@@ -125,7 +126,8 @@ func Passwd(c *cli.Context) error {
 	}
 
 	err = terminal.Restore(fd, oldState)
-	if err != nil {
+	errno, ok := err.(syscall.Errno)
+	if ok && errno != 0 {
 		return stacktrace.Propagate(err, "failed to restore old terminal state")
 	}
 

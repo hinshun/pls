@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	MITMProxyImageName          = "mitmproxy/mitmproxy"
+	MITMProxyImageName          = "mitmproxy/mitmproxy:2.0.2"
 	MITMProxyPort               = 8080
 	MITMProxyPrefix             = "mitm"
 	MITMProxyDefaultCADirectory = "/home/mitmproxy/.mitmproxy"
